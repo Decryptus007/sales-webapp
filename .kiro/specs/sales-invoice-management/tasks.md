@@ -6,7 +6,7 @@ This implementation plan breaks down the sales invoice management system into di
 
 ## Tasks
 
-- [-] 1. Set up project foundation and core types
+- [x] 1. Set up project foundation and core types
   - Initialize Next.js 16 project with React 19, TypeScript and Tailwind CSS v4
   - Configure testing environment with Jest, React Testing Library, and fast-check
   - Create core TypeScript interfaces (Invoice, LineItem, FileAttachment, PaymentStatus)
