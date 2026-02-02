@@ -18,3 +18,6 @@ export type { FileUploadProps, FileUploadItemProps } from './FileUpload';
 
 export { FileList } from './FileList';
 export type { FileListProps } from './FileList';
+
+export { ConfirmationModal } from './ConfirmationModal';
+export type { ConfirmationModalProps } from './ConfirmationModal';

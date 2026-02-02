@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { InvoiceForm } from '../InvoiceForm';
 import { PaymentStatus } from '@/types';
+import { ToastProvider } from '@/components/ui';
 
 // Mock the hooks
 jest.mock('@/hooks/useInvoices', () => ({
@@ -12,6 +13,25 @@ jest.mock('@/hooks/useInvoices', () => ({
   }),
 }));
 
+jest.mock('@/hooks/useFileAttachments', () => ({
+  useFileAttachments: () => ({
+    attachments: [],
+    constraints: {
+      remainingFiles: 10,
+      maxFileSize: 10 * 1024 * 1024,
+      allowedTypes: ['application/pdf'],
+    },
+    canUploadMore: true,
+    stats: { count: 0, totalSize: 0 },
+    deleteAttachment: jest.fn(),
+    downloadAttachment: jest.fn(),
+  }),
+}));
+
+const renderWithToast = (component: React.ReactElement) => {
+  return render(<ToastProvider>{component}</ToastProvider>);
+};
+
 describe('InvoiceForm', () => {
   const mockOnSubmit = jest.fn();
   const mockOnCancel = jest.fn();
@@ -21,7 +41,7 @@ describe('InvoiceForm', () => {
   });
 
   it('renders form with basic structure', () => {
-    render(
+    renderWithToast(
       <InvoiceForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -47,7 +67,7 @@ describe('InvoiceForm', () => {
       paymentStatus: 'Paid' as PaymentStatus,
     };
 
-    render(
+    renderWithToast(
       <InvoiceForm
         initialData={initialData}
         onSubmit={mockOnSubmit}
@@ -62,7 +82,7 @@ describe('InvoiceForm', () => {
   });
 
   it('adds and removes line items', () => {
-    render(
+    renderWithToast(
       <InvoiceForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -84,7 +104,7 @@ describe('InvoiceForm', () => {
   });
 
   it('calls onCancel when cancel button is clicked', () => {
-    render(
+    renderWithToast(
       <InvoiceForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -97,7 +117,7 @@ describe('InvoiceForm', () => {
   });
 
   it('shows correct button text based on mode', () => {
-    const { rerender } = render(
+    const { rerender } = renderWithToast(
       <InvoiceForm
         onSubmit={mockOnSubmit}
         mode="create"
@@ -107,17 +127,19 @@ describe('InvoiceForm', () => {
     expect(screen.getByRole('button', { name: /create invoice/i })).toBeInTheDocument();
 
     rerender(
-      <InvoiceForm
-        onSubmit={mockOnSubmit}
-        mode="edit"
-      />
+      <ToastProvider>
+        <InvoiceForm
+          onSubmit={mockOnSubmit}
+          mode="edit"
+        />
+      </ToastProvider>
     );
 
     expect(screen.getByRole('button', { name: /update invoice/i })).toBeInTheDocument();
   });
 
   it('disables submit button when loading', () => {
-    render(
+    renderWithToast(
       <InvoiceForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}

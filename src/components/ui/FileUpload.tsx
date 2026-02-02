@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useCallback, useState, useRef } from 'react';
 import { FileAttachment } from '@/types';
 import {
@@ -14,6 +16,7 @@ import { formatFileSize } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Button } from './Button';
 import { Modal } from './Modal';
+import { ConfirmationModal } from './ConfirmationModal';
 
 export interface FileUploadProps {
   onFilesUploaded: (attachments: FileAttachment[]) => void;
@@ -41,13 +44,21 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isImage = isImageFile(attachment.type);
   const previewUrl = isImage ? createImagePreviewUrl(attachment) : null;
 
-  const handleDelete = () => {
-    onDelete(attachment.id);
-    setShowDeleteConfirm(false);
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete(attachment.id);
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      console.error('Failed to delete attachment:', error);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleDownload = () => {
@@ -153,32 +164,17 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({
       </div>
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <ConfirmationModal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
         title="Delete File"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Are you sure you want to delete "{attachment.filename}"? This action cannot be undone.
-          </p>
-          <div className="flex justify-end space-x-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteConfirm(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-            >
-              Delete
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        message={`Are you sure you want to delete "${attachment.filename}"? This action cannot be undone.`}
+        confirmText="Delete File"
+        cancelText="Cancel"
+        variant="danger"
+        loading={isDeleting}
+      />
 
       {/* Image Preview Modal */}
       {isImage && previewUrl && (

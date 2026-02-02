@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Invoice, LineItem, PaymentStatus } from '@/types';
+import { Invoice, LineItem, PaymentStatus, FileAttachment } from '@/types';
 import { FormInput, FormSelect, FormGroup } from '@/components/forms';
-import { Button } from '@/components/ui';
+import { Button, FileUpload, FileList, useToast } from '@/components/ui';
+import { useFileAttachments } from '@/hooks';
 import { generateId, calculateLineItemTotal, calculateInvoiceSubtotal, calculateInvoiceTotal } from '@/lib/utils';
 import { validateInvoiceCreation, validateInvoiceUpdate, formatErrorsForForm, getFieldError } from '@/lib/validations';
 import { cn } from '@/lib/utils';
@@ -51,6 +52,12 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   mode = 'create',
   className,
 }) => {
+  const { addToast } = useToast();
+
+  // File attachments hook (only for edit mode with existing invoice)
+  const fileAttachments = mode === 'edit' && initialData?.id
+    ? useFileAttachments(initialData.id)
+    : null;
   // Form state
   const [invoiceNumber, setInvoiceNumber] = useState(initialData?.invoiceNumber || '');
   const [date, setDate] = useState(() => {
@@ -451,6 +458,83 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           </div>
         </div>
       </FormGroup>
+
+      {/* File Attachments - Only show in edit mode */}
+      {mode === 'edit' && fileAttachments && (
+        <FormGroup
+          title="File Attachments"
+          description="Upload and manage files related to this invoice"
+        >
+          <div className="space-y-4">
+            {/* File Upload */}
+            <FileUpload
+              onFilesUploaded={(attachments) => {
+                addToast({
+                  type: 'success',
+                  title: 'Files Uploaded',
+                  message: `${attachments.length} file(s) uploaded successfully.`,
+                });
+              }}
+              onError={(error) => {
+                addToast({
+                  type: 'error',
+                  title: 'Upload Failed',
+                  message: error,
+                });
+              }}
+              maxFiles={fileAttachments.constraints.remainingFiles}
+              maxSize={fileAttachments.constraints.maxFileSize}
+              allowedTypes={fileAttachments.constraints.allowedTypes}
+              disabled={isLoading || isSubmitting || !fileAttachments.canUploadMore}
+            />
+
+            {/* File List */}
+            {fileAttachments.attachments.length > 0 && (
+              <FileList
+                attachments={fileAttachments.attachments}
+                onDelete={(id) => {
+                  try {
+                    fileAttachments.deleteAttachment(id);
+                    addToast({
+                      type: 'success',
+                      title: 'File Deleted',
+                      message: 'File has been successfully deleted.',
+                    });
+                  } catch (error) {
+                    addToast({
+                      type: 'error',
+                      title: 'Deletion Failed',
+                      message: 'Failed to delete file. Please try again.',
+                    });
+                  }
+                }}
+                onDownload={(attachment) => {
+                  try {
+                    fileAttachments.downloadAttachment(attachment.id);
+                  } catch (error) {
+                    addToast({
+                      type: 'error',
+                      title: 'Download Failed',
+                      message: 'Failed to download file. Please try again.',
+                    });
+                  }
+                }}
+              />
+            )}
+
+            {/* Attachment Stats */}
+            {fileAttachments.stats.count > 0 && (
+              <div className="rounded-lg bg-gray-50 p-3">
+                <div className="text-xs text-gray-600">
+                  {fileAttachments.stats.count} file(s) • {' '}
+                  {(fileAttachments.stats.totalSize / (1024 * 1024)).toFixed(1)}MB used • {' '}
+                  {fileAttachments.constraints.remainingFiles} slot(s) remaining
+                </div>
+              </div>
+            )}
+          </div>
+        </FormGroup>
+      )}
 
       {/* Form Actions */}
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

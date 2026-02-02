@@ -163,7 +163,7 @@ describe('FileUploadItem', () => {
     fireEvent.click(deleteButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Delete File')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
       expect(screen.getByText(/Are you sure you want to delete/)).toBeInTheDocument();
     });
   });
@@ -183,7 +183,7 @@ describe('FileUploadItem', () => {
 
     // Wait for modal and click confirm
     await waitFor(() => {
-      const confirmButton = screen.getByText('Delete');
+      const confirmButton = screen.getByRole('button', { name: 'Delete File' });
       fireEvent.click(confirmButton);
     });
 

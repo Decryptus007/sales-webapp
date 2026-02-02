@@ -107,18 +107,18 @@ This implementation plan breaks down the sales invoice management system into di
     - **Property 10: File Validation and Rejection**
     - **Validates: Requirements 7.2, 7.3, 7.5**
 
-- [-] 8. Build invoice list and filtering
-  - [ ] 8.1 Create InvoiceList component
+- [x] 8. Build invoice list and filtering
+  - [x] 8.1 Create InvoiceList component
     - Implement responsive invoice display (table/cards)
     - Add action buttons for edit and delete
     - _Requirements: 2.1, 2.2, 2.3, 10.4_
 
-  - [ ] 8.2 Create FilterPanel component
+  - [x] 8.2 Create FilterPanel component
     - Build date range picker and payment status multi-select
     - Add clear filters functionality
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2_
 
-  - [ ] 8.3 Implement filtering logic
+  - [x] 8.3 Implement filtering logic
     - Add date range and payment status filtering
     - Implement combined filter logic
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4_
@@ -131,18 +131,18 @@ This implementation plan breaks down the sales invoice management system into di
     - **Property 6: Payment Status Filtering Accuracy**
     - **Validates: Requirements 4.1, 4.2, 4.3**
 
-- [ ] 9. Implement invoice pages and routing
-  - [ ] 9.1 Create invoice list page (app/page.tsx)
+- [x] 9. Implement invoice pages and routing
+  - [x] 9.1 Create invoice list page (app/page.tsx)
     - Integrate InvoiceList and FilterPanel components
     - Add navigation to create/edit pages
     - _Requirements: 2.1, 2.2, 3.1, 4.1_
 
-  - [ ] 9.2 Create invoice creation page (app/create/page.tsx)
+  - [x] 9.2 Create invoice creation page (app/create/page.tsx)
     - Integrate InvoiceForm component for new invoices
     - Add navigation and success handling
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-  - [ ] 9.3 Create invoice edit page (app/edit/[id]/page.tsx)
+  - [x] 9.3 Create invoice edit page (app/edit/[id]/page.tsx)
     - Integrate InvoiceForm component for editing existing invoices
     - Add invoice loading and update handling
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
@@ -151,14 +151,14 @@ This implementation plan breaks down the sales invoice management system into di
     - **Property 4: Invoice List Display Completeness**
     - **Validates: Requirements 2.1, 2.2**
 
-- [ ] 10. Implement deletion functionality
-  - [ ] 10.1 Add invoice deletion with confirmation
+- [x] 10. Implement deletion functionality
+  - [x] 10.1 Add invoice deletion with confirmation
     - Implement delete confirmation modal
     - Add cascading deletion of attachments
     - Update UI after successful deletion
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-  - [ ] 10.2 Add attachment deletion functionality
+  - [x] 10.2 Add attachment deletion functionality
     - Implement attachment delete with confirmation
     - Update attachment list after deletion
     - _Requirements: 9.1, 9.2, 9.3, 9.4_
