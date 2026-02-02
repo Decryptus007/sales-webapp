@@ -11,3 +11,12 @@ export type {
   UseInvoiceFormOptions,
   UseInvoiceFormReturn
 } from './useInvoiceForm';
+
+export { useFileAttachments } from './useFileAttachments';
+export type {
+  FileAttachmentError,
+  FileNotFoundError,
+  StorageLimitError,
+  FileUploadProgress,
+  UseFileAttachmentsOptions
+} from './useFileAttachments';

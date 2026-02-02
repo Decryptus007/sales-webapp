@@ -80,21 +80,21 @@ This implementation plan breaks down the sales invoice management system into di
     - **Property 14: Form Validation Feedback**
     - **Validates: Requirements 11.1, 11.5**
 
-- [ ] 6. Checkpoint - Ensure form functionality works
+- [x] 6. Checkpoint - Ensure form functionality works
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Implement file attachment system
-  - [ ] 7.1 Create file upload utilities
+- [x] 7. Implement file attachment system
+  - [x] 7.1 Create file upload utilities
     - Implement file validation (type, size) and base64 encoding
     - Add progress tracking and error handling
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-  - [ ] 7.2 Create FileUpload component
+  - [x] 7.2 Create FileUpload component
     - Build drag-and-drop file upload with preview
     - Add file list display with delete functionality
     - _Requirements: 7.1, 8.1, 9.1_
 
-  - [ ] 7.3 Create useFileAttachments hook
+  - [x] 7.3 Create useFileAttachments hook
     - Implement file management operations (upload, delete, download)
     - Add file storage and retrieval logic
     - _Requirements: 7.1, 8.2, 9.1, 9.2_
@@ -107,7 +107,7 @@ This implementation plan breaks down the sales invoice management system into di
     - **Property 10: File Validation and Rejection**
     - **Validates: Requirements 7.2, 7.3, 7.5**
 
-- [ ] 8. Build invoice list and filtering
+- [-] 8. Build invoice list and filtering
   - [ ] 8.1 Create InvoiceList component
     - Implement responsive invoice display (table/cards)
     - Add action buttons for edit and delete

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Invoice, FilterCriteria, CreateInvoiceData, UpdateInvoiceData } from '@/types';
+import { Invoice, FilterCriteria, CreateInvoiceData, UpdateInvoiceData, UpdateInvoiceWithAttachmentsData } from '@/types';
 import { useLocalStorage, LocalStorageError } from './useLocalStorage';
 import { generateId } from '@/lib/utils';
 
@@ -102,7 +102,7 @@ export function useInvoices() {
   /**
    * Update an existing invoice
    */
-  const updateInvoice = useCallback((id: string, updates: Partial<UpdateInvoiceData>): Invoice => {
+  const updateInvoice = useCallback((id: string, updates: Partial<UpdateInvoiceData> | Partial<Omit<Invoice, 'id' | 'createdAt'>>): Invoice => {
     try {
       setOperationError(null);
 

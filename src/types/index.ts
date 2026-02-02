@@ -45,6 +45,7 @@ export interface FilterCriteria {
 // Utility types for form handling
 export type CreateInvoiceData = Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'attachments'>;
 export type UpdateInvoiceData = Partial<CreateInvoiceData> & { id: string };
+export type UpdateInvoiceWithAttachmentsData = Partial<Omit<Invoice, 'id' | 'createdAt'>> & { id: string };
 
 // API response types
 export interface ApiResponse<T> {
