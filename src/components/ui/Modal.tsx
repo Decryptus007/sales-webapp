@@ -61,7 +61,7 @@ const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black bg-opacity-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black bg-opacity-50 p-2 sm:p-4"
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
@@ -69,20 +69,22 @@ const Modal: React.FC<ModalProps> = ({
     >
       <div
         className={cn(
-          'relative w-full rounded-lg bg-white shadow-xl',
+          'relative w-full rounded-lg bg-white shadow-xl max-h-[90vh] overflow-y-auto',
+          // Enhanced mobile responsiveness
+          'mx-2 sm:mx-4',
           sizes[size],
           className
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            <h2 id="modal-title" className="text-lg font-semibold text-gray-900">
+          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-6 sm:py-4 sticky top-0 bg-white z-10">
+            <h2 id="modal-title" className="text-lg font-semibold text-gray-900 pr-8">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="absolute right-4 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center sm:min-h-[36px] sm:min-w-[36px]"
               aria-label="Close modal"
             >
               <svg
@@ -102,7 +104,7 @@ const Modal: React.FC<ModalProps> = ({
             </button>
           </div>
         )}
-        <div className={cn('p-6', title && 'pt-4')}>
+        <div className={cn('p-4 sm:p-6', title && 'pt-4')}>
           {children}
         </div>
       </div>

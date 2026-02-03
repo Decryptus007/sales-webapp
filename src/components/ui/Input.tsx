@@ -16,7 +16,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="mb-2 block text-sm font-medium text-gray-700"
+            className="mb-2 block text-sm font-medium text-gray-700 touch-manipulation"
           >
             {label}
             {props.required && <span className="ml-1 text-red-500">*</span>}
@@ -25,7 +25,12 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <input
           type={type}
           className={cn(
-            'flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50',
+            'flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 touch-manipulation',
+            // Enhanced mobile styles
+            'sm:h-10 text-base sm:text-sm',
+            // Better touch targets on mobile
+            type === 'date' && 'min-h-[44px] sm:min-h-[40px]',
+            type === 'number' && 'min-h-[44px] sm:min-h-[40px]',
             error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
             className
           )}

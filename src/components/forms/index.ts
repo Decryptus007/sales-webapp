@@ -7,6 +7,9 @@ export type { FormInputProps } from './FormInput';
 export { FormSelect } from './FormSelect';
 export type { FormSelectProps } from './FormSelect';
 
+export { ShadcnFormSelect } from './ShadcnFormSelect';
+export type { ShadcnFormSelectProps, SelectOption } from './ShadcnFormSelect';
+
 export { FormTextarea } from './FormTextarea';
 export type { FormTextareaProps } from './FormTextarea';
 

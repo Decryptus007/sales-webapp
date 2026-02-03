@@ -21,3 +21,71 @@ export type { FileListProps } from './FileList';
 
 export { ConfirmationModal } from './ConfirmationModal';
 export type { ConfirmationModalProps } from './ConfirmationModal';
+
+export { AttachmentDisplay } from './AttachmentDisplay';
+export type { AttachmentDisplayProps } from './AttachmentDisplay';
+
+export { AttachmentList } from './AttachmentList';
+export type { AttachmentListProps } from './AttachmentList';
+
+export { ErrorBoundary, withErrorBoundary, useErrorBoundary } from './ErrorBoundary';
+
+export {
+  LoadingSpinner,
+  LoadingDots,
+  LoadingPulse,
+  Skeleton,
+  ProgressBar,
+  LoadingOverlay,
+  PageLoading
+} from './LoadingSpinner';
+export type {
+  LoadingSpinnerProps,
+  LoadingDotsProps,
+  LoadingPulseProps,
+  SkeletonProps,
+  ProgressBarProps,
+  LoadingOverlayProps,
+  PageLoadingProps
+} from './LoadingSpinner';
+
+export {
+  Transition,
+  FadeTransition,
+  SlideTransition,
+  ScaleTransition,
+  StaggeredTransition,
+  LoadingTransition
+} from './Transition';
+export type {
+  TransitionProps,
+  FadeTransitionProps,
+  SlideTransitionProps,
+  ScaleTransitionProps,
+  StaggeredTransitionProps,
+  LoadingTransitionProps
+} from './Transition';
+
+export { Calendar } from './Calendar';
+export type { CalendarProps } from './Calendar';
+
+export { Popover, PopoverTrigger, PopoverContent } from './Popover';
+
+export { DatePicker } from './DatePicker';
+export type { DatePickerProps } from './DatePicker';
+
+export { DateRangePicker } from './DateRangePicker';
+export type { DateRangePickerProps } from './DateRangePicker';
+
+export {
+  Select as ShadcnSelect,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectLabel,
+  SelectItem,
+  SelectSeparator,
+  SelectScrollUpButton,
+  SelectScrollDownButton,
+} from './ShadcnSelect';

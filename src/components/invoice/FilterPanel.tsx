@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FilterCriteria, PaymentStatus } from '@/types';
-import { Input, Button } from '@/components/ui';
+import { Button, DateRangePicker } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
 
 export interface FilterPanelProps {
   filters: FilterCriteria;
@@ -16,52 +17,71 @@ const paymentStatusOptions: { value: PaymentStatus; label: string; color: string
   { value: 'Overdue', label: 'Overdue', color: 'bg-red-100 text-red-900 border-red-300' },
 ];
 
-const formatDateForInput = (date?: Date): string => {
-  if (!date) return '';
-  return date.toISOString().split('T')[0];
-};
-
-const parseDateFromInput = (dateString: string): Date | undefined => {
-  if (!dateString) return undefined;
-  const date = new Date(dateString);
-  return isNaN(date.getTime()) ? undefined : date;
-};
-
 export const FilterPanel: React.FC<FilterPanelProps> = ({
   filters,
   onFiltersChange,
   className,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [startDate, setStartDate] = useState(formatDateForInput(filters.dateRange?.startDate));
-  const [endDate, setEndDate] = useState(formatDateForInput(filters.dateRange?.endDate));
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    if (filters.dateRange?.startDate || filters.dateRange?.endDate) {
+      return {
+        from: filters.dateRange.startDate,
+        to: filters.dateRange.endDate,
+      };
+    }
+    return undefined;
+  });
+  const [dateError, setDateError] = useState<string>('');
 
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setStartDate(value);
+  // Update local state when filters change externally
+  useEffect(() => {
+    if (filters.dateRange?.startDate || filters.dateRange?.endDate) {
+      setDateRange({
+        from: filters.dateRange.startDate,
+        to: filters.dateRange.endDate,
+      });
+    } else {
+      setDateRange(undefined);
+    }
+  }, [filters.dateRange?.startDate, filters.dateRange?.endDate]);
 
-    const parsedDate = parseDateFromInput(value);
-    onFiltersChange({
-      ...filters,
-      dateRange: {
-        ...filters.dateRange,
-        startDate: parsedDate,
-      },
-    });
+  const validateDateRange = (range?: DateRange): string => {
+    if (!range?.from && !range?.to) return '';
+
+    const now = new Date();
+    now.setHours(23, 59, 59, 999); // End of today
+
+    if (range.from && range.from > now) {
+      return 'Start date cannot be in the future';
+    }
+
+    if (range.to && range.to > now) {
+      return 'End date cannot be in the future';
+    }
+
+    if (range.from && range.to && range.from > range.to) {
+      return 'Start date cannot be after end date';
+    }
+
+    return '';
   };
 
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setEndDate(value);
+  const handleDateRangeChange = (newDateRange: DateRange | undefined) => {
+    setDateRange(newDateRange);
 
-    const parsedDate = parseDateFromInput(value);
-    onFiltersChange({
-      ...filters,
-      dateRange: {
-        ...filters.dateRange,
-        endDate: parsedDate,
-      },
-    });
+    const error = validateDateRange(newDateRange);
+    setDateError(error);
+
+    if (!error) {
+      onFiltersChange({
+        ...filters,
+        dateRange: newDateRange ? {
+          startDate: newDateRange.from,
+          endDate: newDateRange.to,
+        } : undefined,
+      });
+    }
   };
 
   const handlePaymentStatusToggle = (status: PaymentStatus) => {
@@ -82,8 +102,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   };
 
   const clearAllFilters = () => {
-    setStartDate('');
-    setEndDate('');
+    setDateRange(undefined);
+    setDateError('');
     onFiltersChange({});
   };
 
@@ -98,6 +118,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     filters.dateRange?.endDate,
     filters.paymentStatuses && filters.paymentStatuses.length > 0 ? 'status' : null,
   ].filter(Boolean).length;
+
+  // Get today's date for validation
+  const today = new Date();
 
   return (
     <div className={cn('bg-white border border-gray-200 rounded-lg shadow-sm', className)}>
@@ -124,7 +147,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           )}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+            className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center"
             aria-label={isExpanded ? 'Collapse filters' : 'Expand filters'}
           >
             <svg
@@ -149,24 +172,17 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           {/* Date Range Filter */}
           <div>
             <h4 className="text-sm font-medium text-gray-900 mb-3">Date Range</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                type="date"
-                label="Start Date"
-                value={startDate}
-                onChange={handleStartDateChange}
-                placeholder="Select start date"
-              />
-              <Input
-                type="date"
-                label="End Date"
-                value={endDate}
-                onChange={handleEndDateChange}
-                placeholder="Select end date"
-                min={startDate || undefined}
-              />
-            </div>
-            {(filters.dateRange?.startDate || filters.dateRange?.endDate) && (
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange}
+              label="Select Date Range"
+              placeholder="Pick a date range"
+              error={dateError}
+              disabled={false}
+              className="w-full"
+              showPresets={true}
+            />
+            {!dateError && (filters.dateRange?.startDate || filters.dateRange?.endDate) && (
               <div className="mt-2 text-sm text-gray-600">
                 {filters.dateRange?.startDate && filters.dateRange?.endDate
                   ? `Showing invoices from ${filters.dateRange.startDate.toLocaleDateString()} to ${filters.dateRange.endDate.toLocaleDateString()}`

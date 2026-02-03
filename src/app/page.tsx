@@ -1,18 +1,19 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { InvoiceList, FilterPanel } from '@/components/invoice';
 import { Button, ConfirmationModal, useToast } from '@/components/ui';
-import { useInvoices } from '@/hooks';
-import { FilterCriteria, Invoice } from '@/types';
+import { useInvoices, useFilterState } from '@/hooks';
+import { Invoice } from '@/types';
+import { LocalStorageDebug } from '@/components/debug/LocalStorageDebug';
 
 export default function HomePage() {
   const router = useRouter();
   const { invoices, filterInvoices, deleteInvoice, isLoading, error } = useInvoices();
   const { addToast } = useToast();
-  const [filters, setFilters] = useState<FilterCriteria>({});
-  const [deleteModal, setDeleteModal] = useState<{
+  const { filters, updateFilters, hasActiveFilters, activeFilterCount } = useFilterState();
+  const [deleteModal, setDeleteModal] = React.useState<{
     isOpen: boolean;
     invoice: Invoice | null;
     isDeleting: boolean;
@@ -29,6 +30,9 @@ export default function HomePage() {
 
   // Handle invoice edit navigation
   const handleEditInvoice = (invoice: Invoice) => {
+    console.log('Editing invoice:', invoice);
+    console.log('Invoice ID:', invoice.id);
+    console.log('All invoices:', invoices);
     router.push(`/edit/${invoice.id}`);
   };
 
@@ -125,6 +129,11 @@ export default function HomePage() {
           <h2 className="text-2xl font-bold text-gray-900">Invoices</h2>
           <p className="text-gray-600 mt-1">
             Manage your sales invoices and track payments
+            {hasActiveFilters && (
+              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'} active
+              </span>
+            )}
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
@@ -137,7 +146,7 @@ export default function HomePage() {
       {/* Filter Panel */}
       <FilterPanel
         filters={filters}
-        onFiltersChange={setFilters}
+        onFiltersChange={updateFilters}
       />
 
       {/* Invoice List */}
@@ -151,13 +160,22 @@ export default function HomePage() {
       {/* Summary Stats */}
       {filteredInvoices.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Summary</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Summary
+            {hasActiveFilters && (
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                (filtered results)
+              </span>
+            )}
+          </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">
                 {filteredInvoices.length}
               </div>
-              <div className="text-sm text-gray-500">Total Invoices</div>
+              <div className="text-sm text-gray-500">
+                {hasActiveFilters ? 'Filtered' : 'Total'} Invoices
+              </div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
@@ -173,13 +191,41 @@ export default function HomePage() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">
-                ${filteredInvoices.reduce((sum, i) => sum + i.total, 0).toFixed(2)}
+                ₦{filteredInvoices.reduce((sum, i) => sum + i.total, 0).toFixed(2)}
               </div>
               <div className="text-sm text-gray-500">Total Amount</div>
             </div>
           </div>
         </div>
       )}
+
+      {/* No results message when filters are active */}
+      {hasActiveFilters && filteredInvoices.length === 0 && invoices.length > 0 && (
+        <div className="text-center py-12">
+          <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <svg
+              className="w-12 h-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No invoices match your filters</h3>
+          <p className="text-gray-500 mb-6">
+            Try adjusting your filter criteria to see more results.
+          </p>
+        </div>
+      )}
+
+      {/* Debug Component - Remove in production */}
+      <LocalStorageDebug />
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal

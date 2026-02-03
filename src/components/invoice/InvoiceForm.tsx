@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Invoice, LineItem, PaymentStatus, FileAttachment } from '@/types';
-import { FormInput, FormSelect, FormGroup } from '@/components/forms';
-import { Button, FileUpload, FileList, useToast } from '@/components/ui';
+import { FormInput, FormGroup, ShadcnFormSelect } from '@/components/forms';
+import { Button, FileUpload, AttachmentList, useToast, DatePicker } from '@/components/ui';
 import { useFileAttachments } from '@/hooks';
 import { generateId, calculateLineItemTotal, calculateInvoiceSubtotal, calculateInvoiceTotal } from '@/lib/utils';
 import { validateInvoiceCreation, validateInvoiceUpdate, formatErrorsForForm, getFieldError } from '@/lib/validations';
@@ -60,11 +60,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     : null;
   // Form state
   const [invoiceNumber, setInvoiceNumber] = useState(initialData?.invoiceNumber || '');
-  const [date, setDate] = useState(() => {
+  const [date, setDate] = useState<Date | undefined>(() => {
     if (initialData?.date) {
-      return initialData.date.toISOString().split('T')[0];
+      return initialData.date;
     }
-    return new Date().toISOString().split('T')[0];
+    return new Date();
   });
   const [customerName, setCustomerName] = useState(initialData?.customerName || '');
   const [customerEmail, setCustomerEmail] = useState(initialData?.customerEmail || '');
@@ -193,7 +193,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
       // Prepare form data
       const formData: InvoiceFormData = {
         invoiceNumber: invoiceNumber.trim(),
-        date: new Date(date),
+        date: date || new Date(),
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim() || undefined,
         customerAddress: customerAddress.trim() || undefined,
@@ -260,33 +260,30 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             disabled={isLoading || isSubmitting}
           />
 
-          <FormInput
-            name="date"
+          <DatePicker
+            date={date}
+            onDateChange={setDate}
             label="Invoice Date"
-            type="date"
-            value={date}
-            onChange={(e) => {
-              setDate(e.target.value);
-              clearFieldError('date');
-            }}
             error={errors.date}
             required
             disabled={isLoading || isSubmitting}
+            name="date"
           />
         </div>
 
-        <FormSelect
+        <ShadcnFormSelect
           name="paymentStatus"
           label="Payment Status"
           value={paymentStatus}
-          onChange={(e) => {
-            setPaymentStatus(e.target.value as PaymentStatus);
+          onValueChange={(value) => {
+            setPaymentStatus(value as PaymentStatus);
             clearFieldError('paymentStatus');
           }}
           options={paymentStatusOptions}
           error={errors.paymentStatus}
           required
           disabled={isLoading || isSubmitting}
+          placeholder="Select payment status"
         />
       </FormGroup>
 
@@ -354,7 +351,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                     size="sm"
                     onClick={() => removeLineItem(index)}
                     disabled={isLoading || isSubmitting}
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-600 hover:text-red-700 min-h-[44px] sm:min-h-[32px] touch-manipulation"
                   >
                     Remove
                   </Button>
@@ -404,7 +401,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
               <div className="mt-4 text-right">
                 <span className="text-sm font-medium text-gray-900">
-                  Total: ${item.total.toFixed(2)}
+                  Total: ₦{item.total.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -415,7 +412,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             variant="outline"
             onClick={addLineItem}
             disabled={isLoading || isSubmitting}
-            className="w-full"
+            className="w-full min-h-[44px] sm:min-h-[40px] touch-manipulation"
           >
             Add Line Item
           </Button>
@@ -440,19 +437,19 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             disabled={isLoading || isSubmitting}
           />
 
-          <div className="rounded-lg bg-gray-50 p-4">
-            <div className="space-y-2 text-sm">
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+            <div className="space-y-2 text-sm text-gray-800">
               <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span className="text-gray-700">Subtotal:</span>
+                <span className="font-medium text-gray-900">₦{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tax:</span>
-                <span>${taxAmount.toFixed(2)}</span>
+                <span className="text-gray-700">Tax:</span>
+                <span className="font-medium text-gray-900">₦{taxAmount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between border-t border-gray-200 pt-2 font-medium">
-                <span>Total:</span>
-                <span>${total.toFixed(2)}</span>
+              <div className="flex justify-between border-t border-blue-200 pt-2 font-semibold">
+                <span className="text-gray-800">Total:</span>
+                <span className="text-gray-900">₦{total.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -468,12 +465,24 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           <div className="space-y-4">
             {/* File Upload */}
             <FileUpload
-              onFilesUploaded={(attachments) => {
-                addToast({
-                  type: 'success',
-                  title: 'Files Uploaded',
-                  message: `${attachments.length} file(s) uploaded successfully.`,
-                });
+              onFilesUploaded={async (attachments) => {
+                try {
+                  // Upload files using the hook
+                  await fileAttachments.uploadMultipleFiles(
+                    attachments.map(att => new File([att.data], att.filename, { type: att.type }))
+                  );
+                  addToast({
+                    type: 'success',
+                    title: 'Files Uploaded',
+                    message: `${attachments.length} file(s) uploaded successfully.`,
+                  });
+                } catch (error) {
+                  addToast({
+                    type: 'error',
+                    title: 'Upload Failed',
+                    message: 'Failed to upload files. Please try again.',
+                  });
+                }
               }}
               onError={(error) => {
                 addToast({
@@ -488,47 +497,81 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
               disabled={isLoading || isSubmitting || !fileAttachments.canUploadMore}
             />
 
-            {/* File List */}
-            {fileAttachments.attachments.length > 0 && (
-              <FileList
-                attachments={fileAttachments.attachments}
-                onDelete={(id) => {
-                  try {
-                    fileAttachments.deleteAttachment(id);
-                    addToast({
-                      type: 'success',
-                      title: 'File Deleted',
-                      message: 'File has been successfully deleted.',
-                    });
-                  } catch (error) {
-                    addToast({
-                      type: 'error',
-                      title: 'Deletion Failed',
-                      message: 'Failed to delete file. Please try again.',
-                    });
-                  }
-                }}
-                onDownload={(attachment) => {
-                  try {
-                    fileAttachments.downloadAttachment(attachment.id);
-                  } catch (error) {
-                    addToast({
-                      type: 'error',
-                      title: 'Download Failed',
-                      message: 'Failed to download file. Please try again.',
-                    });
-                  }
-                }}
-              />
-            )}
+            {/* Enhanced Attachment List */}
+            <AttachmentList
+              attachments={fileAttachments.attachments}
+              onDelete={async (id) => {
+                try {
+                  fileAttachments.deleteAttachment(id);
+                  addToast({
+                    type: 'success',
+                    title: 'File Deleted',
+                    message: 'File has been successfully deleted.',
+                  });
+                } catch (error) {
+                  addToast({
+                    type: 'error',
+                    title: 'Deletion Failed',
+                    message: 'Failed to delete file. Please try again.',
+                  });
+                }
+              }}
+              onDownload={async (attachment) => {
+                try {
+                  await fileAttachments.downloadAttachment(attachment.id);
+                } catch (error) {
+                  addToast({
+                    type: 'error',
+                    title: 'Download Failed',
+                    message: 'Failed to download file. Please try again.',
+                  });
+                }
+              }}
+              onBulkDownload={async (attachments) => {
+                try {
+                  await fileAttachments.downloadMultipleAttachments(
+                    attachments.map(att => att.id)
+                  );
+                } catch (error) {
+                  addToast({
+                    type: 'error',
+                    title: 'Bulk Download Failed',
+                    message: 'Failed to download files. Please try again.',
+                  });
+                }
+              }}
+              showPreview={true}
+              showMetadata={true}
+              compact={false}
+              emptyMessage="No files attached to this invoice"
+              emptyDescription="Upload documents, images, or other files related to this invoice"
+              showEmptyActions={true}
+              onUploadClick={() => {
+                // Scroll to upload area or focus file input
+                const uploadElement = document.querySelector('[data-testid="file-upload"]');
+                uploadElement?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              maxDisplayCount={5}
+            />
 
             {/* Attachment Stats */}
             {fileAttachments.stats.count > 0 && (
               <div className="rounded-lg bg-gray-50 p-3">
-                <div className="text-xs text-gray-600">
-                  {fileAttachments.stats.count} file(s) • {' '}
-                  {(fileAttachments.stats.totalSize / (1024 * 1024)).toFixed(1)}MB used • {' '}
-                  {fileAttachments.constraints.remainingFiles} slot(s) remaining
+                <div className="grid grid-cols-2 gap-4 text-xs text-gray-600 sm:grid-cols-4">
+                  <div>
+                    <span className="font-medium">{fileAttachments.stats.count}</span> files
+                  </div>
+                  <div>
+                    <span className="font-medium">
+                      {(fileAttachments.stats.totalSize / (1024 * 1024)).toFixed(1)}MB
+                    </span> used
+                  </div>
+                  <div>
+                    <span className="font-medium">{fileAttachments.constraints.remainingFiles}</span> slots left
+                  </div>
+                  <div>
+                    <span className="font-medium">{fileAttachments.stats.storageUsed.toFixed(1)}%</span> storage
+                  </div>
                 </div>
               </div>
             )}
@@ -537,13 +580,14 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
       )}
 
       {/* Form Actions */}
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
         {onCancel && (
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
             disabled={isLoading || isSubmitting}
+            className="w-full sm:w-auto order-2 sm:order-1"
           >
             Cancel
           </Button>
@@ -553,6 +597,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           type="submit"
           loading={isSubmitting || isLoading}
           disabled={isLoading || isSubmitting}
+          className="w-full sm:w-auto order-1 sm:order-2"
         >
           {mode === 'create' ? 'Create Invoice' : 'Update Invoice'}
         </Button>

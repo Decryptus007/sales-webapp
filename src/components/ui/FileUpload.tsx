@@ -32,7 +32,7 @@ export interface FileUploadProps {
 export interface FileUploadItemProps {
   attachment: FileAttachment;
   onDelete: (id: string) => void;
-  onDownload?: (attachment: FileAttachment) => void;
+  onDownload?: (attachment: FileAttachment) => Promise<void> | void;
   showPreview?: boolean;
 }
 
@@ -61,22 +61,26 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (onDownload) {
-      onDownload(attachment);
+      try {
+        await onDownload(attachment);
+      } catch (error) {
+        console.error('Download failed:', error);
+      }
     }
   };
 
   return (
     <>
-      <div className="flex items-center justify-between rounded-lg border border-gray-200 p-3">
-        <div className="flex items-center space-x-3">
+      <div className="flex items-center justify-between rounded-lg border border-gray-200 p-3 touch-manipulation">
+        <div className="flex items-center space-x-3 min-w-0 flex-1">
           {/* File Icon or Preview */}
           <div className="flex-shrink-0">
             {isImage && previewUrl && showPreview ? (
               <button
                 onClick={() => setPreviewOpen(true)}
-                className="h-10 w-10 overflow-hidden rounded border border-gray-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-10 w-10 overflow-hidden rounded border border-gray-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation min-h-[44px] min-w-[44px] sm:h-10 sm:w-10 sm:min-h-[40px] sm:min-w-[40px]"
               >
                 <img
                   src={previewUrl}
@@ -85,7 +89,7 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({
                 />
               </button>
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded bg-gray-100">
+              <div className="flex h-10 w-10 items-center justify-center rounded bg-gray-100 min-h-[44px] min-w-[44px] sm:h-10 sm:w-10 sm:min-h-[40px] sm:min-w-[40px]">
                 <svg
                   className="h-5 w-5 text-gray-500"
                   fill="none"
@@ -105,23 +109,23 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({
 
           {/* File Info */}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-gray-900">
+            <p className="truncate text-sm font-medium text-gray-900 sm:text-sm">
               {attachment.filename}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 sm:text-xs">
               {getFileTypeDescription(attachment.type)} • {formatFileSize(attachment.size)}
             </p>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
           {onDownload && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleDownload}
-              className="h-8 w-8 p-0"
+              className="h-10 w-10 p-0 min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 sm:min-h-[32px] sm:min-w-[32px] touch-manipulation"
               title="Download file"
             >
               <svg
@@ -143,7 +147,7 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({
             variant="ghost"
             size="sm"
             onClick={() => setShowDeleteConfirm(true)}
-            className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+            className="h-10 w-10 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 sm:min-h-[32px] sm:min-w-[32px] touch-manipulation"
             title="Delete file"
           >
             <svg
@@ -318,15 +322,15 @@ const FileUpload: React.FC<FileUploadProps> = ({
   }, [disabled, isUploading]);
 
   return (
-    <div className={cn('w-full', className)}>
+    <div className={cn('w-full', className)} data-testid="file-upload">
       <div
         className={cn(
-          'relative rounded-lg border-2 border-dashed p-6 text-center transition-colors',
+          'relative rounded-lg border-2 border-dashed p-4 sm:p-6 text-center transition-colors touch-manipulation',
           isDragOver && !disabled
             ? 'border-blue-400 bg-blue-50'
             : 'border-gray-300 hover:border-gray-400',
           disabled && 'cursor-not-allowed opacity-50',
-          !disabled && !isUploading && 'cursor-pointer hover:bg-gray-50'
+          !disabled && !isUploading && 'cursor-pointer hover:bg-gray-50 active:bg-gray-100'
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}

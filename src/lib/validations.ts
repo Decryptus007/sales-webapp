@@ -32,7 +32,7 @@ const BaseLineItemSchema = z.object({
   id: z.string().min(1, 'Line item ID is required'),
   description: z.string().min(1, 'Description is required').max(500, 'Description cannot exceed 500 characters'),
   quantity: z.number().positive('Quantity must be positive').max(999999, 'Quantity cannot exceed 999,999'),
-  unitPrice: z.number().nonnegative('Unit price cannot be negative').max(999999.99, 'Unit price cannot exceed $999,999.99'),
+  unitPrice: z.number().nonnegative('Unit price cannot be negative').max(999999.99, 'Unit price cannot exceed ₦999,999.99'),
   total: z.number().nonnegative('Total cannot be negative'),
 });
 
@@ -62,7 +62,7 @@ const BaseInvoiceSchema = z.object({
   customerAddress: z.string().max(500, 'Customer address cannot exceed 500 characters').optional(),
   lineItems: z.array(BaseLineItemSchema).min(1, 'At least one line item is required').max(100, 'Cannot exceed 100 line items'),
   subtotal: z.number().nonnegative('Subtotal cannot be negative'),
-  tax: z.number().nonnegative('Tax cannot be negative').max(999999.99, 'Tax cannot exceed $999,999.99'),
+  tax: z.number().nonnegative('Tax cannot be negative').max(999999.99, 'Tax cannot exceed ₦999,999.99'),
   total: z.number().nonnegative('Total cannot be negative'),
   paymentStatus: PaymentStatusSchema,
   attachments: z.array(FileAttachmentSchema).max(20, 'Cannot exceed 20 attachments per invoice'),
@@ -103,7 +103,7 @@ export const CreateInvoiceSchema = z.object({
   customerAddress: z.string().max(500, 'Customer address cannot exceed 500 characters').optional(),
   lineItems: z.array(BaseLineItemSchema).min(1, 'At least one line item is required').max(100, 'Cannot exceed 100 line items'),
   subtotal: z.number().nonnegative('Subtotal cannot be negative'),
-  tax: z.number().nonnegative('Tax cannot be negative').max(999999.99, 'Tax cannot exceed $999,999.99'),
+  tax: z.number().nonnegative('Tax cannot be negative').max(999999.99, 'Tax cannot exceed ₦999,999.99'),
   total: z.number().nonnegative('Total cannot be negative'),
   paymentStatus: PaymentStatusSchema,
 }).refine((data) => {
@@ -140,7 +140,7 @@ export const UpdateInvoiceSchema = z.object({
   customerAddress: z.string().max(500, 'Customer address cannot exceed 500 characters').optional(),
   lineItems: z.array(BaseLineItemSchema).min(1, 'At least one line item is required').max(100, 'Cannot exceed 100 line items').optional(),
   subtotal: z.number().nonnegative('Subtotal cannot be negative').optional(),
-  tax: z.number().nonnegative('Tax cannot be negative').max(999999.99, 'Tax cannot exceed $999,999.99').optional(),
+  tax: z.number().nonnegative('Tax cannot be negative').max(999999.99, 'Tax cannot exceed ₦999,999.99').optional(),
   total: z.number().nonnegative('Total cannot be negative').optional(),
   paymentStatus: PaymentStatusSchema.optional(),
 });
@@ -452,4 +452,221 @@ export function sanitizeStringInput(input: string): string {
 export function validateEmailFormat(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+}
+
+/**
+ * Edge case handling utilities
+ */
+
+/**
+ * Safely parses a date string with fallback
+ */
+export function safeDateParse(dateInput: unknown): Date | null {
+  if (!dateInput) return null;
+
+  try {
+    if (dateInput instanceof Date) {
+      return isNaN(dateInput.getTime()) ? null : dateInput;
+    }
+
+    if (typeof dateInput === 'string') {
+      const parsed = new Date(dateInput);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    if (typeof dateInput === 'number') {
+      const parsed = new Date(dateInput);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Safely parses a number with fallback
+ */
+export function safeNumberParse(numberInput: unknown, fallback: number = 0): number {
+  if (typeof numberInput === 'number' && !isNaN(numberInput) && isFinite(numberInput)) {
+    return numberInput;
+  }
+
+  if (typeof numberInput === 'string') {
+    const parsed = parseFloat(numberInput);
+    return isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
+  }
+
+  return fallback;
+}
+
+/**
+ * Validates and sanitizes invoice data for edge cases
+ */
+export function sanitizeInvoiceData(data: any): any {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid invoice data: must be an object');
+  }
+
+  const sanitized = { ...data };
+
+  // Sanitize string fields
+  if (sanitized.invoiceNumber) {
+    sanitized.invoiceNumber = sanitizeStringInput(sanitized.invoiceNumber);
+  }
+
+  if (sanitized.customerName) {
+    sanitized.customerName = sanitizeStringInput(sanitized.customerName);
+  }
+
+  if (sanitized.customerEmail) {
+    sanitized.customerEmail = sanitized.customerEmail.trim().toLowerCase();
+  }
+
+  if (sanitized.customerAddress) {
+    sanitized.customerAddress = sanitizeStringInput(sanitized.customerAddress);
+  }
+
+  // Sanitize date
+  if (sanitized.date) {
+    const parsedDate = safeDateParse(sanitized.date);
+    if (!parsedDate) {
+      throw new Error('Invalid invoice date');
+    }
+    sanitized.date = parsedDate;
+  }
+
+  // Sanitize numeric fields
+  sanitized.subtotal = safeNumberParse(sanitized.subtotal, 0);
+  sanitized.tax = safeNumberParse(sanitized.tax, 0);
+  sanitized.total = safeNumberParse(sanitized.total, 0);
+
+  // Sanitize line items
+  if (Array.isArray(sanitized.lineItems)) {
+    sanitized.lineItems = sanitized.lineItems.map((item: any) => ({
+      ...item,
+      description: item.description ? sanitizeStringInput(item.description) : '',
+      quantity: safeNumberParse(item.quantity, 1),
+      unitPrice: safeNumberParse(item.unitPrice, 0),
+      total: safeNumberParse(item.total, 0),
+    }));
+  }
+
+  return sanitized;
+}
+
+/**
+ * Handles corrupted localStorage data gracefully
+ */
+export function handleCorruptedData<T>(
+  key: string,
+  corruptedData: any,
+  defaultValue: T,
+  onCorruption?: (key: string, error: Error) => void
+): T {
+  try {
+    console.warn(`Corrupted data detected for key "${key}":`, corruptedData);
+
+    if (onCorruption) {
+      onCorruption(key, new Error(`Corrupted data in localStorage for key "${key}"`));
+    }
+
+    // Try to salvage partial data if it's an array
+    if (Array.isArray(defaultValue) && Array.isArray(corruptedData)) {
+      const salvaged = corruptedData.filter((item: any) => {
+        try {
+          // Basic validation - check if item has required properties
+          return item && typeof item === 'object' && item.id;
+        } catch {
+          return false;
+        }
+      });
+
+      if (salvaged.length > 0) {
+        console.log(`Salvaged ${salvaged.length} items from corrupted data`);
+        return salvaged as T;
+      }
+    }
+
+    return defaultValue;
+  } catch (error) {
+    console.error(`Error handling corrupted data for key "${key}":`, error);
+    return defaultValue;
+  }
+}
+
+/**
+ * Validates browser compatibility for required features
+ */
+export function validateBrowserCompatibility(): { compatible: boolean; issues: string[] } {
+  const issues: string[] = [];
+
+  // Check localStorage
+  try {
+    const testKey = '__compatibility_test__';
+    localStorage.setItem(testKey, 'test');
+    localStorage.removeItem(testKey);
+  } catch {
+    issues.push('localStorage is not available');
+  }
+
+  // Check JSON support
+  try {
+    JSON.parse('{}');
+    JSON.stringify({});
+  } catch {
+    issues.push('JSON support is not available');
+  }
+
+  // Check Date support
+  try {
+    new Date().toISOString();
+  } catch {
+    issues.push('Date API is not fully supported');
+  }
+
+  // Check File API support (for file uploads)
+  if (typeof File === 'undefined' || typeof FileReader === 'undefined') {
+    issues.push('File API is not supported (file uploads may not work)');
+  }
+
+  return {
+    compatible: issues.length === 0,
+    issues,
+  };
+}
+
+/**
+ * Provides fallback behavior when features are not supported
+ */
+export function getFallbackBehavior(feature: string): {
+  available: boolean;
+  fallback?: string;
+  message?: string;
+} {
+  const fallbacks: Record<string, { available: boolean; fallback?: string; message?: string }> = {
+    localStorage: {
+      available: typeof Storage !== 'undefined',
+      fallback: 'memory',
+      message: 'Data will not persist between sessions',
+    },
+    fileAPI: {
+      available: typeof File !== 'undefined' && typeof FileReader !== 'undefined',
+      fallback: 'disabled',
+      message: 'File uploads are not supported in this browser',
+    },
+    dragDrop: {
+      available: 'draggable' in document.createElement('div'),
+      fallback: 'click',
+      message: 'Drag and drop is not supported, use click to upload files',
+    },
+    touchEvents: {
+      available: 'ontouchstart' in window,
+      fallback: 'mouse',
+      message: 'Touch events not supported, using mouse events',
+    },
+  };
+
+  return fallbacks[feature] || { available: false, message: 'Feature not supported' };
 }

@@ -26,10 +26,16 @@ export default function EditInvoicePage() {
     }
 
     try {
+      console.log('Looking for invoice with ID:', invoiceId);
+      console.log('Available invoices:', getInvoice); // This will show the function
+
       const foundInvoice = getInvoice(invoiceId);
+      console.log('Found invoice:', foundInvoice);
+
       if (foundInvoice) {
         setInvoice(foundInvoice);
       } else {
+        console.log('Invoice not found');
         setNotFound(true);
       }
     } catch (error) {

@@ -91,8 +91,16 @@ export function useInvoices() {
   const getInvoice = useCallback((id: string): Invoice | null => {
     try {
       setOperationError(null);
-      return invoices.find(invoice => invoice.id === id) || null;
+      console.log('getInvoice called with ID:', id);
+      console.log('Current invoices in storage:', invoices);
+      console.log('Invoices length:', invoices.length);
+
+      const found = invoices.find(invoice => invoice.id === id);
+      console.log('Found invoice:', found);
+
+      return found || null;
     } catch (error) {
+      console.error('Error in getInvoice:', error);
       const invoiceError = new InvoiceError('Failed to get invoice', error as Error);
       setOperationError(invoiceError);
       return null;
@@ -174,19 +182,37 @@ export function useInvoices() {
   }, [invoices, setInvoices]);
 
   /**
-   * Filter invoices based on criteria
+   * Filter invoices based on criteria with enhanced error handling
    */
   const filterInvoices = useCallback((criteria: FilterCriteria): Invoice[] => {
     try {
       setOperationError(null);
 
+      // Handle empty invoice list
+      if (invoices.length === 0) {
+        return [];
+      }
+
       return invoices.filter(invoice => {
-        // Date range filtering
+        // Date range filtering with enhanced validation
         if (criteria.dateRange) {
           const invoiceDate = new Date(invoice.date);
 
+          // Handle invalid invoice dates
+          if (isNaN(invoiceDate.getTime())) {
+            console.warn(`Invalid date found in invoice ${invoice.id}: ${invoice.date}`);
+            return false;
+          }
+
           if (criteria.dateRange.startDate) {
             const startDate = new Date(criteria.dateRange.startDate);
+
+            // Handle invalid start date
+            if (isNaN(startDate.getTime())) {
+              console.warn('Invalid start date in filter criteria');
+              return true; // Don't filter out if date is invalid
+            }
+
             startDate.setHours(0, 0, 0, 0);
             if (invoiceDate < startDate) {
               return false;
@@ -195,6 +221,13 @@ export function useInvoices() {
 
           if (criteria.dateRange.endDate) {
             const endDate = new Date(criteria.dateRange.endDate);
+
+            // Handle invalid end date
+            if (isNaN(endDate.getTime())) {
+              console.warn('Invalid end date in filter criteria');
+              return true; // Don't filter out if date is invalid
+            }
+
             endDate.setHours(23, 59, 59, 999);
             if (invoiceDate > endDate) {
               return false;
@@ -202,9 +235,36 @@ export function useInvoices() {
           }
         }
 
-        // Payment status filtering
+        // Payment status filtering with validation
         if (criteria.paymentStatuses && criteria.paymentStatuses.length > 0) {
+          // Handle invalid payment status
+          if (!invoice.paymentStatus) {
+            console.warn(`Missing payment status in invoice ${invoice.id}`);
+            return false;
+          }
+
           if (!criteria.paymentStatuses.includes(invoice.paymentStatus)) {
+            return false;
+          }
+        }
+
+        // Search term filtering (if implemented)
+        if (criteria.searchTerm && criteria.searchTerm.trim()) {
+          const searchTerm = criteria.searchTerm.toLowerCase().trim();
+
+          // Search in multiple fields with null checks
+          const searchableFields = [
+            invoice.invoiceNumber || '',
+            invoice.customerName || '',
+            invoice.customerEmail || '',
+            ...(invoice.lineItems || []).map(item => item.description || '')
+          ];
+
+          const matches = searchableFields.some(field =>
+            field.toLowerCase().includes(searchTerm)
+          );
+
+          if (!matches) {
             return false;
           }
         }
@@ -214,7 +274,10 @@ export function useInvoices() {
     } catch (error) {
       const invoiceError = new InvoiceError('Failed to filter invoices', error as Error);
       setOperationError(invoiceError);
-      return [];
+
+      // Return all invoices if filtering fails to maintain functionality
+      console.error('Filter operation failed, returning all invoices:', error);
+      return invoices;
     }
   }, [invoices]);
 

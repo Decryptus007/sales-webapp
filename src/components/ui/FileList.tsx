@@ -1,13 +1,16 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import { FileAttachment } from '@/types';
 import { FileUploadItem } from './FileUpload';
 import { downloadFile } from '@/lib/fileUtils';
 import { cn } from '@/lib/utils';
+import { useToast } from './Toast';
 
 export interface FileListProps {
   attachments: FileAttachment[];
   onDelete: (id: string) => void;
-  onDownload?: (attachment: FileAttachment) => void;
+  onDownload?: (attachment: FileAttachment) => Promise<void> | void;
   showPreview?: boolean;
   emptyMessage?: string;
   className?: string;
@@ -21,15 +24,59 @@ const FileList: React.FC<FileListProps> = ({
   emptyMessage = 'No files attached',
   className,
 }) => {
-  const handleDownload = (attachment: FileAttachment) => {
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
+  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
+  const { addToast } = useToast();
+
+  const handleDownload = async (attachment: FileAttachment) => {
     try {
+      setDownloadingFiles(prev => new Set(prev).add(attachment.id));
+      setDownloadProgress(prev => ({ ...prev, [attachment.id]: 0 }));
+
       if (onDownload) {
-        onDownload(attachment);
+        await onDownload(attachment);
       } else {
-        downloadFile(attachment);
+        await downloadFile(attachment, {
+          onProgress: (progress) => {
+            setDownloadProgress(prev => ({
+              ...prev,
+              [attachment.id]: progress.percentage
+            }));
+          },
+          onError: (error) => {
+            addToast({
+              type: 'error',
+              message: `Failed to download ${attachment.filename}: ${error.message}`
+            });
+          },
+          onSuccess: () => {
+            addToast({
+              type: 'success',
+              message: `Successfully downloaded ${attachment.filename}`
+            });
+          }
+        });
       }
     } catch (error) {
       console.error('Failed to download file:', error);
+      addToast({
+        type: 'error',
+        message: `Failed to download ${attachment.filename}`
+      });
+    } finally {
+      setDownloadingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(attachment.id);
+        return newSet;
+      });
+
+      // Clear progress after a delay
+      setTimeout(() => {
+        setDownloadProgress(prev => {
+          const { [attachment.id]: _, ...rest } = prev;
+          return rest;
+        });
+      }, 2000);
     }
   };
 
@@ -59,13 +106,26 @@ const FileList: React.FC<FileListProps> = ({
   return (
     <div className={cn('space-y-2', className)}>
       {attachments.map((attachment) => (
-        <FileUploadItem
-          key={attachment.id}
-          attachment={attachment}
-          onDelete={onDelete}
-          onDownload={handleDownload}
-          showPreview={showPreview}
-        />
+        <div key={attachment.id} className="relative">
+          <FileUploadItem
+            attachment={attachment}
+            onDelete={onDelete}
+            onDownload={handleDownload}
+            showPreview={showPreview}
+          />
+
+          {/* Download Progress Overlay */}
+          {downloadingFiles.has(attachment.id) && (
+            <div className="absolute inset-0 bg-white bg-opacity-75 rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <p className="mt-1 text-xs text-gray-600">
+                  Downloading... {downloadProgress[attachment.id] || 0}%
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       ))}
     </div>
   );

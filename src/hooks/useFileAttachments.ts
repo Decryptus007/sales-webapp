@@ -345,9 +345,12 @@ export function useFileAttachments(
   }, [invoice, invoiceId, attachments, updateInvoice]);
 
   /**
-   * Download a file attachment
+   * Download a file attachment with progress tracking and error handling
    */
-  const downloadAttachment = useCallback((attachmentId: string): void => {
+  const downloadAttachment = useCallback(async (
+    attachmentId: string,
+    options: { onProgress?: (progress: any) => void; onError?: (error: Error) => void } = {}
+  ): Promise<void> => {
     try {
       setOperationError(null);
 
@@ -356,11 +359,61 @@ export function useFileAttachments(
         throw new FileNotFoundError(attachmentId);
       }
 
-      downloadFile(attachment);
+      await downloadFile(attachment, {
+        onProgress: options.onProgress,
+        onError: (error) => {
+          const fileError = new FileAttachmentError('Failed to download attachment', error);
+          setOperationError(fileError);
+          options.onError?.(fileError);
+        },
+        onSuccess: () => {
+          // Download completed successfully
+        },
+        sanitizeFilename: true,
+      });
     } catch (error) {
       const fileError = error instanceof FileAttachmentError
         ? error
         : new FileAttachmentError('Failed to download attachment', error as Error);
+
+      setOperationError(fileError);
+      throw fileError;
+    }
+  }, [attachments]);
+
+  /**
+   * Download multiple attachments
+   */
+  const downloadMultipleAttachments = useCallback(async (
+    attachmentIds: string[],
+    options: { onProgress?: (progress: any) => void; onError?: (error: Error) => void } = {}
+  ): Promise<{ successful: number; failed: Array<{ attachmentId: string; error: string }> }> => {
+    try {
+      setOperationError(null);
+
+      const attachmentsToDownload = attachments.filter(att => attachmentIds.includes(att.id));
+
+      if (attachmentsToDownload.length === 0) {
+        throw new FileAttachmentError('No valid attachments found for download');
+      }
+
+      const { downloadMultipleFiles } = await import('@/lib/fileUtils');
+      const result = await downloadMultipleFiles(attachmentsToDownload, {
+        onProgress: options.onProgress,
+        onError: options.onError,
+      });
+
+      return {
+        successful: result.successful,
+        failed: result.failed.map(f => ({
+          attachmentId: f.attachment.id,
+          error: f.error
+        }))
+      };
+    } catch (error) {
+      const fileError = error instanceof FileAttachmentError
+        ? error
+        : new FileAttachmentError('Failed to download attachments', error as Error);
 
       setOperationError(fileError);
       throw fileError;
@@ -491,6 +544,7 @@ export function useFileAttachments(
     uploadMultipleFiles: uploadMultipleFilesToInvoice,
     deleteAttachment,
     downloadAttachment,
+    downloadMultipleAttachments,
     getAttachment,
     bulkDeleteAttachments,
 

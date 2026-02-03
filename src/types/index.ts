@@ -40,6 +40,7 @@ export interface FilterCriteria {
     endDate?: Date;
   };
   paymentStatuses?: PaymentStatus[];
+  searchTerm?: string;
 }
 
 // Utility types for form handling

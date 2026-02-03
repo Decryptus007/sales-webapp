@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Custom error types for localStorage operations
 export class LocalStorageError extends Error {
@@ -60,7 +60,7 @@ export const localStorageUtils = {
   },
 
   /**
-   * Safely set an item in localStorage with JSON serialization
+   * Safely set an item in localStorage with JSON serialization and storage limit handling
    */
   setItem: <T>(key: string, value: T): void => {
     try {
@@ -76,15 +76,38 @@ export const localStorageUtils = {
         return value;
       });
 
+      // Check if the data is too large before attempting to store
+      const estimatedSize = serialized.length + key.length;
+      const currentSize = localStorageUtils.getStorageSize();
+      const maxSize = 5 * 1024 * 1024; // 5MB typical localStorage limit
+
+      if (currentSize + estimatedSize > maxSize) {
+        console.warn(`Attempting to store ${estimatedSize} bytes, current usage: ${currentSize} bytes`);
+
+        // Try to free up space by removing old data
+        localStorageUtils.cleanupOldData();
+      }
+
       window.localStorage.setItem(key, serialized);
     } catch (error) {
       console.error(`Error writing to localStorage key "${key}":`, error);
 
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-        throw new StorageQuotaError(`Storage quota exceeded when writing to key "${key}"`);
+        // Try cleanup and retry once
+        try {
+          localStorageUtils.cleanupOldData();
+          window.localStorage.setItem(key, JSON.stringify(value, (key, value) => {
+            if (value instanceof Date) {
+              return value.toISOString();
+            }
+            return value;
+          }));
+        } catch (retryError) {
+          throw new StorageQuotaError(`Storage quota exceeded when writing to key "${key}". Consider reducing data size or clearing old data.`);
+        }
+      } else {
+        throw new LocalStorageError(`Failed to write to localStorage for key "${key}"`, error as Error);
       }
-
-      throw new LocalStorageError(`Failed to write to localStorage for key "${key}"`, error as Error);
     }
   },
 
@@ -157,6 +180,81 @@ export const localStorageUtils = {
       console.error('Error clearing localStorage:', error);
       throw new LocalStorageError('Failed to clear localStorage', error as Error);
     }
+  },
+
+  /**
+   * Clean up old or unnecessary data to free storage space
+   */
+  cleanupOldData: (): void => {
+    try {
+      if (typeof window === 'undefined') {
+        return;
+      }
+
+      const keysToRemove: string[] = [];
+      const now = Date.now();
+      const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+      // Look for keys that might contain timestamp data
+      for (const key in window.localStorage) {
+        if (window.localStorage.hasOwnProperty(key)) {
+          try {
+            const data = JSON.parse(window.localStorage[key]);
+
+            // Check if data has a timestamp and is old
+            if (data && typeof data === 'object') {
+              const timestamp = data.createdAt || data.updatedAt || data.timestamp;
+              if (timestamp && (now - new Date(timestamp).getTime()) > maxAge) {
+                keysToRemove.push(key);
+              }
+            }
+          } catch {
+            // If we can't parse the data, it might be corrupted
+            if (key.startsWith('temp_') || key.startsWith('cache_')) {
+              keysToRemove.push(key);
+            }
+          }
+        }
+      }
+
+      // Remove old keys
+      keysToRemove.forEach(key => {
+        try {
+          window.localStorage.removeItem(key);
+          console.log(`Cleaned up old localStorage key: ${key}`);
+        } catch (error) {
+          console.warn(`Failed to remove old key ${key}:`, error);
+        }
+      });
+
+      console.log(`Cleaned up ${keysToRemove.length} old localStorage entries`);
+    } catch (error) {
+      console.error('Error during localStorage cleanup:', error);
+    }
+  },
+
+  /**
+   * Get storage usage statistics
+   */
+  getStorageStats: (): { used: number; available: number; percentage: number } => {
+    try {
+      const used = localStorageUtils.getStorageSize();
+      const maxSize = 5 * 1024 * 1024; // 5MB typical limit
+      const available = maxSize - used;
+      const percentage = (used / maxSize) * 100;
+
+      return { used, available, percentage };
+    } catch {
+      return { used: 0, available: 0, percentage: 0 };
+    }
+  },
+
+  /**
+   * Check if we're approaching storage limits
+   */
+  isStorageNearLimit: (): boolean => {
+    const stats = localStorageUtils.getStorageStats();
+    return stats.percentage > 80; // Warn when over 80% full
   }
 };
 
@@ -172,19 +270,23 @@ export function useLocalStorage<T>(
   const [error, setError] = useState<LocalStorageError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Use ref to store the default value to avoid dependency issues
+  const defaultValueRef = useRef(defaultValue);
+  defaultValueRef.current = defaultValue;
+
   // Initialize state from localStorage on mount
   useEffect(() => {
     try {
       setError(null);
-      const value = localStorageUtils.getItem(key, defaultValue);
+      const value = localStorageUtils.getItem(key, defaultValueRef.current);
       setStoredValue(value);
     } catch (err) {
       setError(err as LocalStorageError);
-      setStoredValue(defaultValue);
+      setStoredValue(defaultValueRef.current);
     } finally {
       setIsLoading(false);
     }
-  }, [key, defaultValue]);
+  }, [key]); // Remove defaultValue from dependencies
 
   // Update localStorage when state changes
   const setValue = useCallback((value: T | ((prev: T) => T)) => {
@@ -222,25 +324,29 @@ export function useLocalStorageState<T extends Record<string, any>>(
   const [error, setError] = useState<LocalStorageError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Use ref to store the initial state to avoid dependency issues
+  const initialStateRef = useRef(initialState);
+  initialStateRef.current = initialState;
+
   // Initialize state from localStorage on mount
   useEffect(() => {
     try {
       setError(null);
-      const loadedState = { ...initialState };
+      const loadedState = { ...initialStateRef.current };
 
-      for (const key in initialState) {
+      for (const key in initialStateRef.current) {
         const storageKey = `${keyPrefix}_${key}`;
-        loadedState[key] = localStorageUtils.getItem(storageKey, initialState[key]);
+        loadedState[key] = localStorageUtils.getItem(storageKey, initialStateRef.current[key]);
       }
 
       setState(loadedState);
     } catch (err) {
       setError(err as LocalStorageError);
-      setState(initialState);
+      setState(initialStateRef.current);
     } finally {
       setIsLoading(false);
     }
-  }, [keyPrefix, initialState]);
+  }, [keyPrefix]); // Remove initialState from dependencies
 
   // Update multiple localStorage keys
   const updateState = useCallback((updates: Partial<T>) => {

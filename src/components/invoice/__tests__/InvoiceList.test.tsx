@@ -74,8 +74,8 @@ describe('InvoiceList', () => {
   it('shows loading state', () => {
     render(<InvoiceList invoices={[]} loading={true} />);
 
-    // Should show loading skeletons
-    expect(document.querySelectorAll('.animate-pulse')).toHaveLength(3);
+    // Should show loading skeletons - check for skeleton elements with "Loading content" label
+    expect(screen.getAllByRole('status', { name: 'Loading content' })).toHaveLength(42);
   });
 
   it('calls onEdit when edit button is clicked', () => {
@@ -108,8 +108,8 @@ describe('InvoiceList', () => {
   it('formats currency and dates correctly', () => {
     render(<InvoiceList invoices={mockInvoices} />);
 
-    expect(screen.getAllByText('$1,100.00')).toHaveLength(2); // Desktop + Mobile
-    expect(screen.getAllByText('$1,080.00')).toHaveLength(2); // Desktop + Mobile
+    expect(screen.getAllByText('₦1,100.00')).toHaveLength(2); // Desktop + Mobile
+    expect(screen.getAllByText('₦1,080.00')).toHaveLength(2); // Desktop + Mobile
     expect(screen.getAllByText('Jan 15, 2024')).toHaveLength(2); // Desktop + Mobile
     expect(screen.getAllByText('Jan 20, 2024')).toHaveLength(2); // Desktop + Mobile
   });

@@ -121,10 +121,10 @@ describe('Button Component', () => {
       expect(button).toHaveClass('disabled:opacity-50');
     });
 
-    test('loading spinner has aria-hidden', () => {
+    test('loading spinner has aria-label', () => {
       render(<Button loading>Loading</Button>);
       const spinner = screen.getByRole('button').querySelector('svg');
-      expect(spinner).toHaveAttribute('aria-hidden', 'true');
+      expect(spinner).toHaveAttribute('aria-label', 'Loading');
     });
   });
 });

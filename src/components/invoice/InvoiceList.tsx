@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Invoice, PaymentStatus } from '@/types';
-import { Button } from '@/components/ui';
+import { Button, Skeleton, FadeTransition } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 export interface InvoiceListProps {
@@ -30,9 +30,9 @@ const PaymentStatusBadge: React.FC<{ status: PaymentStatus }> = ({ status }) => 
 };
 
 const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-NG', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'NGN',
   }).format(amount);
 };
 
@@ -68,23 +68,59 @@ export const InvoiceList: React.FC<InvoiceListProps> = ({
     return (
       <div className={cn('space-y-4', className)}>
         {/* Loading skeleton */}
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="animate-pulse">
-            <div className="hidden md:block">
-              <div className="bg-gray-200 h-16 rounded-lg"></div>
-            </div>
-            <div className="md:hidden">
-              <div className="bg-gray-200 h-32 rounded-lg"></div>
-            </div>
+        <FadeTransition show={true}>
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index}>
+                {/* Desktop skeleton */}
+                <div className="hidden md:block">
+                  <div className="bg-white shadow rounded-lg border border-gray-200 p-6">
+                    <div className="grid grid-cols-6 gap-4">
+                      <Skeleton variant="text" height="1.25rem" />
+                      <Skeleton variant="text" height="1.25rem" />
+                      <Skeleton variant="text" height="1.25rem" />
+                      <Skeleton variant="text" height="1.25rem" />
+                      <Skeleton variant="rectangular" height="1.5rem" width="5rem" />
+                      <div className="flex space-x-2 justify-end">
+                        <Skeleton variant="rectangular" height="2rem" width="3rem" />
+                        <Skeleton variant="rectangular" height="2rem" width="4rem" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Mobile skeleton */}
+                <div className="md:hidden">
+                  <div className="bg-white shadow rounded-lg border border-gray-200 p-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-2 flex-1">
+                          <Skeleton variant="text" height="1.25rem" width="60%" />
+                          <Skeleton variant="text" height="1rem" width="80%" />
+                        </div>
+                        <Skeleton variant="rectangular" height="1.5rem" width="5rem" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Skeleton variant="text" height="1rem" />
+                        <Skeleton variant="text" height="1rem" />
+                      </div>
+                      <div className="flex space-x-2 pt-2">
+                        <Skeleton variant="rectangular" height="2rem" className="flex-1" />
+                        <Skeleton variant="rectangular" height="2rem" className="flex-1" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </FadeTransition>
       </div>
     );
   }
 
   if (invoices.length === 0) {
     return (
-      <div className={cn('text-center py-12', className)}>
+      <FadeTransition show={true} className={cn('text-center py-12', className)}>
         <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
           <svg
             className="w-12 h-12 text-gray-400"
@@ -105,12 +141,12 @@ export const InvoiceList: React.FC<InvoiceListProps> = ({
         <p className="text-gray-500 mb-6">
           Get started by creating your first invoice.
         </p>
-      </div>
+      </FadeTransition>
     );
   }
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <FadeTransition show={true} className={cn('space-y-4', className)}>
       {/* Desktop Table View */}
       <div className="hidden md:block overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
         <table className="min-w-full divide-y divide-gray-300">
@@ -137,8 +173,16 @@ export const InvoiceList: React.FC<InvoiceListProps> = ({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {invoices.map((invoice) => (
-              <tr key={invoice.id} className="hover:bg-gray-50">
+            {invoices.map((invoice, index) => (
+              <tr
+                key={invoice.id}
+                className="hover:bg-gray-50 transition-colors duration-150"
+                style={{
+                  animationDelay: `${index * 50}ms`,
+                  animation: 'fadeInUp 0.3s ease-out forwards',
+                  opacity: 0,
+                }}
+              >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
                     {invoice.invoiceNumber}
@@ -176,6 +220,7 @@ export const InvoiceList: React.FC<InvoiceListProps> = ({
                       size="sm"
                       onClick={() => handleDelete(invoice)}
                       loading={deletingId === invoice.id}
+                      loadingText="Deleting..."
                       className="text-red-600 hover:text-red-900"
                     >
                       Delete
@@ -190,10 +235,15 @@ export const InvoiceList: React.FC<InvoiceListProps> = ({
 
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
-        {invoices.map((invoice) => (
+        {invoices.map((invoice, index) => (
           <div
             key={invoice.id}
-            className="bg-white shadow rounded-lg border border-gray-200 p-4"
+            className="bg-white shadow rounded-lg border border-gray-200 p-4 transition-all duration-200 hover:shadow-md"
+            style={{
+              animationDelay: `${index * 100}ms`,
+              animation: 'fadeInUp 0.3s ease-out forwards',
+              opacity: 0,
+            }}
           >
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -243,6 +293,7 @@ export const InvoiceList: React.FC<InvoiceListProps> = ({
                     size="sm"
                     onClick={() => handleDelete(invoice)}
                     loading={deletingId === invoice.id}
+                    loadingText="Deleting..."
                     className="flex-1"
                   >
                     Delete
@@ -253,6 +304,6 @@ export const InvoiceList: React.FC<InvoiceListProps> = ({
           </div>
         ))}
       </div>
-    </div>
+    </FadeTransition>
   );
 };
