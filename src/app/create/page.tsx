@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { InvoiceForm, InvoiceFormData } from '@/components/invoice';
 import { useInvoices } from '@/hooks';
-import { Invoice } from '@/types';
+import { Invoice, CreateInvoiceData } from '@/types';
 
 export default function CreateInvoicePage() {
   const router = useRouter();
@@ -13,11 +13,14 @@ export default function CreateInvoicePage() {
 
   // Handle form submission
   const handleSubmit = async (formData: InvoiceFormData) => {
+    console.log('🏗️ CreatePage - handleSubmit called');
+    console.log('🏗️ CreatePage - Received formData.attachments:', formData.attachments?.length, formData.attachments);
+
     setIsLoading(true);
 
     try {
-      // Create the invoice
-      const newInvoice: Invoice = createInvoice({
+      // Create the invoice with attachments
+      const invoiceData: CreateInvoiceData = {
         invoiceNumber: formData.invoiceNumber,
         date: formData.date,
         customerName: formData.customerName,
@@ -28,10 +31,21 @@ export default function CreateInvoicePage() {
         tax: formData.tax,
         total: formData.total,
         paymentStatus: formData.paymentStatus,
-      });
+      };
 
-      // Show success message and redirect
-      alert(`Invoice ${newInvoice.invoiceNumber} created successfully!`);
+      // Add attachments if any were uploaded during creation
+      if (formData.attachments && formData.attachments.length > 0) {
+        invoiceData.attachments = formData.attachments;
+        console.log('🏗️ CreatePage - Added attachments to invoiceData:', invoiceData.attachments.length, invoiceData.attachments);
+      } else {
+        console.log('🏗️ CreatePage - No attachments to add');
+      }
+
+      console.log('🏗️ CreatePage - Calling createInvoice with data:', invoiceData);
+      const newInvoice: Invoice = createInvoice(invoiceData);
+      console.log('🏗️ CreatePage - Created invoice:', newInvoice.id, 'with attachments:', newInvoice.attachments?.length, newInvoice.attachments);
+
+      // Navigate back to home page - success toast will be shown by the form
       router.push('/');
     } catch (error) {
       console.error('Failed to create invoice:', error);
@@ -42,11 +56,9 @@ export default function CreateInvoicePage() {
     }
   };
 
-  // Handle cancel navigation
+  // Handle cancel navigation - no confirmation needed as form handles it
   const handleCancel = () => {
-    if (window.confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
-      router.push('/');
-    }
+    router.push('/');
   };
 
   return (

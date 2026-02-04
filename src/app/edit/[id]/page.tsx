@@ -9,7 +9,7 @@ import { Invoice } from '@/types';
 export default function EditInvoicePage() {
   const router = useRouter();
   const params = useParams();
-  const { getInvoice, updateInvoice } = useInvoices();
+  const { getInvoice, updateInvoice, invoices, isLoading: invoicesLoading } = useInvoices();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(true);
@@ -17,7 +17,7 @@ export default function EditInvoicePage() {
 
   const invoiceId = params.id as string;
 
-  // Load invoice data on mount
+  // Load invoice data on mount - wait for invoices to load first
   useEffect(() => {
     if (!invoiceId) {
       setNotFound(true);
@@ -25,17 +25,20 @@ export default function EditInvoicePage() {
       return;
     }
 
-    try {
-      console.log('Looking for invoice with ID:', invoiceId);
-      console.log('Available invoices:', getInvoice); // This will show the function
+    // Wait for invoices to load from localStorage before trying to get invoice
+    if (invoicesLoading) {
+      return;
+    }
 
+    try {
       const foundInvoice = getInvoice(invoiceId);
-      console.log('Found invoice:', foundInvoice);
 
       if (foundInvoice) {
+        console.log('📄 EditPage - Found invoice:', foundInvoice.id);
+        console.log('📄 EditPage - Invoice attachments:', foundInvoice.attachments?.length, foundInvoice.attachments);
         setInvoice(foundInvoice);
       } else {
-        console.log('Invoice not found');
+        console.log('📄 EditPage - Invoice not found for ID:', invoiceId);
         setNotFound(true);
       }
     } catch (error) {
@@ -44,17 +47,39 @@ export default function EditInvoicePage() {
     } finally {
       setIsLoadingInvoice(false);
     }
-  }, [invoiceId, getInvoice]);
+  }, [invoiceId, invoicesLoading, invoices, getInvoice]);
+
+  // Also update invoice state whenever invoices array changes (for attachment updates)
+  useEffect(() => {
+    if (invoice && !invoicesLoading) {
+      const currentInvoice = getInvoice(invoiceId);
+      if (currentInvoice && currentInvoice.updatedAt !== invoice.updatedAt) {
+        console.log('📄 EditPage - Invoice updated, refreshing state');
+        console.log('📄 EditPage - New attachment count:', currentInvoice.attachments?.length);
+        setInvoice(currentInvoice);
+      }
+    }
+  }, [invoices, invoice, invoiceId, getInvoice, invoicesLoading]); // Add 'invoices' to dependencies so it updates when invoices change
 
   // Handle form submission
   const handleSubmit = async (formData: InvoiceFormData) => {
-    if (!invoice) return;
+    console.log('📄 EditPage - handleSubmit called');
+
+    // Get the CURRENT invoice data at submission time, not stale state
+    const currentInvoice = getInvoice(invoiceId);
+    if (!currentInvoice) {
+      console.error('📄 EditPage - Invoice not found at submission time');
+      return;
+    }
+
+    console.log('📄 EditPage - Current invoice attachments at submission:', currentInvoice.attachments?.length, currentInvoice.attachments);
+    console.log('📄 EditPage - Form data attachments:', formData.attachments?.length, formData.attachments);
 
     setIsLoading(true);
 
     try {
-      // Update the invoice
-      const updatedInvoice = updateInvoice(invoice.id, {
+      // Update the invoice - DON'T override attachments as they're managed by the file attachment system
+      const updatedInvoice = updateInvoice(currentInvoice.id, {
         invoiceNumber: formData.invoiceNumber,
         date: formData.date,
         customerName: formData.customerName,
@@ -65,10 +90,12 @@ export default function EditInvoicePage() {
         tax: formData.tax,
         total: formData.total,
         paymentStatus: formData.paymentStatus,
+        // DON'T pass attachments - let the file attachment system manage them
       });
 
-      // Show success message and redirect
-      alert(`Invoice ${updatedInvoice.invoiceNumber} updated successfully!`);
+      console.log('📄 EditPage - Updated invoice attachments:', updatedInvoice.attachments?.length, updatedInvoice.attachments);
+
+      // Navigate back to home page - success toast will be shown by the form
       router.push('/');
     } catch (error) {
       console.error('Failed to update invoice:', error);
@@ -79,15 +106,13 @@ export default function EditInvoicePage() {
     }
   };
 
-  // Handle cancel navigation
+  // Handle cancel navigation - no confirmation needed as form handles it
   const handleCancel = () => {
-    if (window.confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
-      router.push('/');
-    }
+    router.push('/');
   };
 
-  // Loading state
-  if (isLoadingInvoice) {
+  // Loading state - show loading while invoices are loading OR while searching for invoice
+  if (invoicesLoading || isLoadingInvoice) {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">

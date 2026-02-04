@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Invoice, LineItem, PaymentStatus } from '@/types';
+import { Invoice, LineItem, PaymentStatus, CreateInvoiceData } from '@/types';
 import { useInvoices } from './useInvoices';
 import {
   validateInvoiceCreation,
@@ -263,7 +263,12 @@ export function useInvoiceForm(options: UseInvoiceFormOptions = {}): UseInvoiceF
       // Submit based on mode
       let result: Invoice;
       if (mode === 'create') {
-        result = createInvoice(formattedData);
+        // For the useInvoiceForm hook, we don't handle attachments, so create without them
+        const createData: CreateInvoiceData = {
+          ...formattedData,
+          // Don't include attachments in this hook - they're handled separately in the main form
+        };
+        result = createInvoice(createData);
       } else {
         if (!initialData?.id) {
           throw new Error('Invoice ID is required for updates');

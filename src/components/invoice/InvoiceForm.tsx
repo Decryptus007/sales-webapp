@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Invoice, LineItem, PaymentStatus, FileAttachment } from '@/types';
 import { FormInput, FormGroup, ShadcnFormSelect } from '@/components/forms';
-import { Button, FileUpload, AttachmentList, useToast, DatePicker } from '@/components/ui';
+import { Button, FileUpload, AttachmentList, useToast, DatePicker, ConfirmationModal } from '@/components/ui';
 import { useFileAttachments } from '@/hooks';
-import { generateId, calculateLineItemTotal, calculateInvoiceSubtotal, calculateInvoiceTotal } from '@/lib/utils';
+import { generateId, calculateLineItemTotal, calculateInvoiceSubtotal, calculateInvoiceTotal, formatCurrency } from '@/lib/utils';
 import { validateInvoiceCreation, validateInvoiceUpdate, formatErrorsForForm, getFieldError } from '@/lib/validations';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +27,7 @@ export interface InvoiceFormData {
   tax: number;
   total: number;
   paymentStatus: PaymentStatus;
+  attachments?: FileAttachment[]; // Add attachments to form data
 }
 
 interface LineItemFormData {
@@ -53,6 +54,14 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   className,
 }) => {
   const { addToast } = useToast();
+
+  // File attachments state for create mode
+  const [tempAttachments, setTempAttachments] = useState<FileAttachment[]>([]);
+
+  // Debug: Log tempAttachments changes
+  useEffect(() => {
+    console.log('🔄 InvoiceForm - tempAttachments changed:', tempAttachments.length, tempAttachments);
+  }, [tempAttachments]);
 
   // File attachments hook (only for edit mode with existing invoice)
   const fileAttachments = mode === 'edit' && initialData?.id
@@ -95,6 +104,36 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Confirmation modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<InvoiceFormData | null>(null);
+
+  // Cancel confirmation modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  // Helper functions for temporary file attachments in create mode
+  const handleTempFileDelete = useCallback((attachmentId: string) => {
+    setTempAttachments(prev => prev.filter(att => att.id !== attachmentId));
+    addToast({
+      type: 'success',
+      title: 'File Removed',
+      message: 'File has been removed from the invoice.',
+    });
+  }, [addToast]);
+
+  const handleTempFileDownload = useCallback(async (attachment: FileAttachment) => {
+    try {
+      const { downloadFile } = await import('@/lib/fileUtils');
+      await downloadFile(attachment);
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Download Failed',
+        message: 'Failed to download file. Please try again.',
+      });
+    }
+  }, [addToast]);
 
   // Calculate totals
   const subtotal = calculateInvoiceSubtotal(lineItems);
@@ -186,55 +225,109 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
     if (isSubmitting || isLoading) return;
 
+    // Prepare form data
+    const formData: InvoiceFormData = {
+      invoiceNumber: invoiceNumber.trim(),
+      date: date || new Date(),
+      customerName: customerName.trim(),
+      customerEmail: customerEmail.trim() || undefined,
+      customerAddress: customerAddress.trim() || undefined,
+      lineItems: lineItems.map(item => ({
+        id: item.id,
+        description: item.description.trim(),
+        quantity: parseFloat(item.quantity) || 0,
+        unitPrice: parseFloat(item.unitPrice) || 0,
+        total: item.total,
+      })),
+      subtotal,
+      tax: taxAmount,
+      total,
+      paymentStatus,
+      attachments: mode === 'create' ? tempAttachments : undefined,
+    };
+
+    // Validate form data
+    const validation = mode === 'create'
+      ? validateInvoiceCreation(formData)
+      : validateInvoiceUpdate({ ...formData, id: initialData?.id || '' });
+
+    if (!validation.success) {
+      setErrors(formatErrorsForForm(validation.errors));
+      return;
+    }
+
+    // For edit mode, show confirmation modal
+    if (mode === 'edit') {
+      setPendingFormData(formData);
+      setShowConfirmModal(true);
+      return;
+    }
+
+    // For create mode, submit directly
+    await submitForm(formData);
+  }, [
+    isSubmitting, isLoading, invoiceNumber, date, customerName, customerEmail,
+    customerAddress, lineItems, subtotal, taxAmount, total, paymentStatus,
+    mode, initialData?.id, tempAttachments
+  ]);
+
+  // Actually submit the form
+  const submitForm = useCallback(async (formData: InvoiceFormData) => {
+    console.log('🚀 InvoiceForm - submitForm called with attachments:', formData.attachments?.length, formData.attachments);
+
     setIsSubmitting(true);
     setErrors({});
 
     try {
-      // Prepare form data
-      const formData: InvoiceFormData = {
-        invoiceNumber: invoiceNumber.trim(),
-        date: date || new Date(),
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim() || undefined,
-        customerAddress: customerAddress.trim() || undefined,
-        lineItems: lineItems.map(item => ({
-          id: item.id,
-          description: item.description.trim(),
-          quantity: parseFloat(item.quantity) || 0,
-          unitPrice: parseFloat(item.unitPrice) || 0,
-          total: item.total,
-        })),
-        subtotal,
-        tax: taxAmount,
-        total,
-        paymentStatus,
-      };
-
-      // Validate form data
-      const validation = mode === 'create'
-        ? validateInvoiceCreation(formData)
-        : validateInvoiceUpdate({ ...formData, id: initialData?.id || '' });
-
-      if (!validation.success) {
-        setErrors(formatErrorsForForm(validation.errors));
-        return;
-      }
-
-      // Submit form
       await onSubmit(formData);
+
+      console.log('✅ InvoiceForm - onSubmit completed successfully');
+
+      // Show success toast
+      addToast({
+        type: 'success',
+        title: mode === 'create' ? 'Invoice Created' : 'Invoice Updated',
+        message: `Invoice ${formData.invoiceNumber} has been ${mode === 'create' ? 'created' : 'updated'} successfully.`,
+      });
     } catch (error) {
       console.error('Form submission error:', error);
       setErrors({
         submit: error instanceof Error ? error.message : 'An error occurred while saving the invoice'
       });
+
+      // Show error toast
+      addToast({
+        type: 'error',
+        title: mode === 'create' ? 'Creation Failed' : 'Update Failed',
+        message: error instanceof Error ? error.message : 'An error occurred while saving the invoice',
+      });
     } finally {
       setIsSubmitting(false);
     }
-  }, [
-    isSubmitting, isLoading, invoiceNumber, date, customerName, customerEmail,
-    customerAddress, lineItems, subtotal, taxAmount, total, paymentStatus,
-    onSubmit, mode, initialData?.id
-  ]);
+  }, [onSubmit, mode, addToast]);
+
+  // Handle confirmed submission
+  const handleConfirmSubmit = useCallback(async () => {
+    if (pendingFormData) {
+      setShowConfirmModal(false);
+      await submitForm(pendingFormData);
+      setPendingFormData(null);
+    }
+  }, [pendingFormData, submitForm]);
+
+  // Handle cancel confirmation
+  const handleCancelClick = useCallback(() => {
+    if (onCancel) {
+      setShowCancelModal(true);
+    }
+  }, [onCancel]);
+
+  const handleConfirmCancel = useCallback(() => {
+    setShowCancelModal(false);
+    if (onCancel) {
+      onCancel();
+    }
+  }, [onCancel]);
 
   // Auto-calculate totals when line items or tax change
   useEffect(() => {
@@ -401,7 +494,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
               <div className="mt-4 text-right">
                 <span className="text-sm font-medium text-gray-900">
-                  Total: ₦{item.total.toFixed(2)}
+                  Total: {formatCurrency(item.total)}
                 </span>
               </div>
             </div>
@@ -441,33 +534,33 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             <div className="space-y-2 text-sm text-gray-800">
               <div className="flex justify-between">
                 <span className="text-gray-700">Subtotal:</span>
-                <span className="font-medium text-gray-900">₦{subtotal.toFixed(2)}</span>
+                <span className="font-medium text-gray-900">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-700">Tax:</span>
-                <span className="font-medium text-gray-900">₦{taxAmount.toFixed(2)}</span>
+                <span className="font-medium text-gray-900">{formatCurrency(taxAmount)}</span>
               </div>
               <div className="flex justify-between border-t border-blue-200 pt-2 font-semibold">
                 <span className="text-gray-800">Total:</span>
-                <span className="text-gray-900">₦{total.toFixed(2)}</span>
+                <span className="text-gray-900">{formatCurrency(total)}</span>
               </div>
             </div>
           </div>
         </div>
       </FormGroup>
 
-      {/* File Attachments - Only show in edit mode */}
-      {mode === 'edit' && fileAttachments && (
-        <FormGroup
-          title="File Attachments"
-          description="Upload and manage files related to this invoice"
-        >
-          <div className="space-y-4">
-            {/* File Upload */}
-            <FileUpload
-              onFilesUploaded={async (attachments) => {
+      {/* File Attachments - Available in both create and edit modes */}
+      <FormGroup
+        title="File Attachments"
+        description="Upload and manage files related to this invoice"
+      >
+        <div className="space-y-4">
+          {/* File Upload */}
+          <FileUpload
+            onFilesUploaded={async (attachments) => {
+              if (mode === 'edit' && fileAttachments) {
+                // Edit mode: use the file attachments hook
                 try {
-                  // Upload files using the hook
                   await fileAttachments.uploadMultipleFiles(
                     attachments.map(att => new File([att.data], att.filename, { type: att.type }))
                   );
@@ -483,24 +576,50 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                     message: 'Failed to upload files. Please try again.',
                   });
                 }
-              }}
-              onError={(error) => {
-                addToast({
-                  type: 'error',
-                  title: 'Upload Failed',
-                  message: error,
+              } else {
+                // Create mode: directly use the FileAttachment objects
+                console.log('📁 FileUpload - Create mode: received attachments:', attachments.length, attachments);
+                setTempAttachments(prev => {
+                  const updated = [...prev, ...attachments];
+                  console.log('📁 FileUpload - Updated tempAttachments:', updated.length, updated);
+                  return updated;
                 });
-              }}
-              maxFiles={fileAttachments.constraints.remainingFiles}
-              maxSize={fileAttachments.constraints.maxFileSize}
-              allowedTypes={fileAttachments.constraints.allowedTypes}
-              disabled={isLoading || isSubmitting || !fileAttachments.canUploadMore}
-            />
+                addToast({
+                  type: 'success',
+                  title: 'Files Uploaded',
+                  message: `${attachments.length} file(s) uploaded successfully.`,
+                });
+              }
+            }}
+            onError={(error) => {
+              addToast({
+                type: 'error',
+                title: 'Upload Failed',
+                message: error,
+              });
+            }}
+            maxFiles={mode === 'edit' && fileAttachments ? fileAttachments.constraints.remainingFiles : 20 - tempAttachments.length}
+            maxSize={10 * 1024 * 1024} // 10MB
+            allowedTypes={[
+              'application/pdf',
+              'image/jpeg',
+              'image/png',
+              'image/gif',
+              'application/msword',
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              'text/plain',
+              'application/vnd.ms-excel',
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]}
+            disabled={isLoading || isSubmitting || (mode === 'edit' && fileAttachments && !fileAttachments.canUploadMore) || (mode === 'create' && tempAttachments.length >= 20)}
+          />
 
-            {/* Enhanced Attachment List */}
-            <AttachmentList
-              attachments={fileAttachments.attachments}
-              onDelete={async (id) => {
+          {/* Enhanced Attachment List */}
+          <AttachmentList
+            attachments={mode === 'edit' && fileAttachments ? fileAttachments.attachments : tempAttachments}
+            onDelete={async (id) => {
+              if (mode === 'edit' && fileAttachments) {
+                // Edit mode: use the file attachments hook
                 try {
                   fileAttachments.deleteAttachment(id);
                   addToast({
@@ -515,8 +634,14 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                     message: 'Failed to delete file. Please try again.',
                   });
                 }
-              }}
-              onDownload={async (attachment) => {
+              } else {
+                // Create mode: handle temporary attachments
+                handleTempFileDelete(id);
+              }
+            }}
+            onDownload={async (attachment) => {
+              if (mode === 'edit' && fileAttachments) {
+                // Edit mode: use the file attachments hook
                 try {
                   await fileAttachments.downloadAttachment(attachment.id);
                 } catch (error) {
@@ -526,8 +651,14 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                     message: 'Failed to download file. Please try again.',
                   });
                 }
-              }}
-              onBulkDownload={async (attachments) => {
+              } else {
+                // Create mode: handle temporary attachments
+                await handleTempFileDownload(attachment);
+              }
+            }}
+            onBulkDownload={async (attachments) => {
+              if (mode === 'edit' && fileAttachments) {
+                // Edit mode: use the file attachments hook
                 try {
                   await fileAttachments.downloadMultipleAttachments(
                     attachments.map(att => att.id)
@@ -539,45 +670,99 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                     message: 'Failed to download files. Please try again.',
                   });
                 }
-              }}
-              showPreview={true}
-              showMetadata={true}
-              compact={false}
-              emptyMessage="No files attached to this invoice"
-              emptyDescription="Upload documents, images, or other files related to this invoice"
-              showEmptyActions={true}
-              onUploadClick={() => {
-                // Scroll to upload area or focus file input
-                const uploadElement = document.querySelector('[data-testid="file-upload"]');
-                uploadElement?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              maxDisplayCount={5}
-            />
+              } else {
+                // Create mode: download individual files directly
+                try {
+                  for (const attachment of attachments) {
+                    await handleTempFileDownload(attachment);
+                  }
+                } catch (error) {
+                  addToast({
+                    type: 'error',
+                    title: 'Bulk Download Failed',
+                    message: 'Failed to download files. Please try again.',
+                  });
+                }
+              }
+            }}
+            showPreview={true}
+            showMetadata={true}
+            compact={false}
+            emptyMessage="No files attached to this invoice"
+            emptyDescription="Upload documents, images, or other files related to this invoice"
+            showEmptyActions={true}
+            onUploadClick={() => {
+              // Scroll to upload area or focus file input
+              const uploadElement = document.querySelector('[data-testid="file-upload"]');
+              uploadElement?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            maxDisplayCount={5}
+          />
 
-            {/* Attachment Stats */}
-            {fileAttachments.stats.count > 0 && (
-              <div className="rounded-lg bg-gray-50 p-3">
-                <div className="grid grid-cols-2 gap-4 text-xs text-gray-600 sm:grid-cols-4">
-                  <div>
-                    <span className="font-medium">{fileAttachments.stats.count}</span> files
-                  </div>
-                  <div>
-                    <span className="font-medium">
-                      {(fileAttachments.stats.totalSize / (1024 * 1024)).toFixed(1)}MB
-                    </span> used
-                  </div>
-                  <div>
-                    <span className="font-medium">{fileAttachments.constraints.remainingFiles}</span> slots left
-                  </div>
-                  <div>
-                    <span className="font-medium">{fileAttachments.stats.storageUsed.toFixed(1)}%</span> storage
-                  </div>
+          {/* Attachment Stats */}
+          {((mode === 'edit' && fileAttachments && fileAttachments.stats.count > 0) || (mode === 'create' && tempAttachments.length > 0)) && (
+            <div className="rounded-lg bg-gray-50 p-3">
+              <div className="grid grid-cols-2 gap-4 text-xs text-gray-600 sm:grid-cols-4">
+                <div>
+                  <span className="font-medium">
+                    {mode === 'edit' && fileAttachments ? fileAttachments.stats.count : tempAttachments.length}
+                  </span> files
+                </div>
+                <div>
+                  <span className="font-medium">
+                    {mode === 'edit' && fileAttachments
+                      ? (fileAttachments.stats.totalSize / (1024 * 1024)).toFixed(1)
+                      : (tempAttachments.reduce((sum, att) => sum + att.size, 0) / (1024 * 1024)).toFixed(1)
+                    }MB
+                  </span> used
+                </div>
+                <div>
+                  <span className="font-medium">
+                    {mode === 'edit' && fileAttachments
+                      ? fileAttachments.constraints.remainingFiles
+                      : 20 - tempAttachments.length
+                    }
+                  </span> slots left
+                </div>
+                <div>
+                  <span className="font-medium">
+                    {mode === 'edit' && fileAttachments
+                      ? fileAttachments.stats.storageUsed.toFixed(1)
+                      : ((tempAttachments.reduce((sum, att) => sum + att.size, 0) / (50 * 1024 * 1024)) * 100).toFixed(1)
+                    }%
+                  </span> storage
                 </div>
               </div>
-            )}
-          </div>
-        </FormGroup>
-      )}
+            </div>
+          )}
+
+          {/* Create Mode Info */}
+          {mode === 'create' && (
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-4 w-4 text-blue-400"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-2">
+                  <p className="text-xs text-blue-700">
+                    Files uploaded here will be attached to the invoice when it's created.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </FormGroup>
 
       {/* Form Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
@@ -585,7 +770,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           <Button
             type="button"
             variant="outline"
-            onClick={onCancel}
+            onClick={handleCancelClick}
             disabled={isLoading || isSubmitting}
             className="w-full sm:w-auto order-2 sm:order-1"
           >
@@ -609,6 +794,34 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           <p className="text-sm text-red-600">{errors.submit}</p>
         </div>
       )}
+
+      {/* Confirmation Modal for Updates */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => {
+          setShowConfirmModal(false);
+          setPendingFormData(null);
+        }}
+        onConfirm={handleConfirmSubmit}
+        title="Confirm Invoice Update"
+        message={`Are you sure you want to update invoice ${pendingFormData?.invoiceNumber}? This action will save all changes permanently.`}
+        confirmText="Update Invoice"
+        cancelText="Cancel"
+        variant="info"
+        loading={isSubmitting}
+      />
+
+      {/* Cancel Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={handleConfirmCancel}
+        title="Cancel Changes"
+        message="Are you sure you want to cancel? Any unsaved changes will be lost."
+        confirmText="Yes, Cancel"
+        cancelText="Continue Editing"
+        variant="warning"
+      />
     </form>
   );
 };

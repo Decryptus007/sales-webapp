@@ -6,7 +6,7 @@ import { InvoiceList, FilterPanel } from '@/components/invoice';
 import { Button, ConfirmationModal, useToast } from '@/components/ui';
 import { useInvoices, useFilterState } from '@/hooks';
 import { Invoice } from '@/types';
-import { LocalStorageDebug } from '@/components/debug/LocalStorageDebug';
+import { formatCurrency } from '@/lib/utils';
 
 export default function HomePage() {
   const router = useRouter();
@@ -30,9 +30,6 @@ export default function HomePage() {
 
   // Handle invoice edit navigation
   const handleEditInvoice = (invoice: Invoice) => {
-    console.log('Editing invoice:', invoice);
-    console.log('Invoice ID:', invoice.id);
-    console.log('All invoices:', invoices);
     router.push(`/edit/${invoice.id}`);
   };
 
@@ -191,7 +188,7 @@ export default function HomePage() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">
-                ₦{filteredInvoices.reduce((sum, i) => sum + i.total, 0).toFixed(2)}
+                {formatCurrency(filteredInvoices.reduce((sum, i) => sum + i.total, 0))}
               </div>
               <div className="text-sm text-gray-500">Total Amount</div>
             </div>
@@ -223,9 +220,6 @@ export default function HomePage() {
           </p>
         </div>
       )}
-
-      {/* Debug Component - Remove in production */}
-      <LocalStorageDebug />
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal

@@ -279,8 +279,11 @@ export function useLocalStorage<T>(
     try {
       setError(null);
       const value = localStorageUtils.getItem(key, defaultValueRef.current);
+      console.log('💾 useLocalStorage - Loading from localStorage key:', key);
+      console.log('💾 useLocalStorage - Loaded data:', value);
       setStoredValue(value);
     } catch (err) {
+      console.error('💾 useLocalStorage - Error loading from localStorage:', err);
       setError(err as LocalStorageError);
       setStoredValue(defaultValueRef.current);
     } finally {
@@ -296,12 +299,18 @@ export function useLocalStorage<T>(
       // Allow value to be a function so we have the same API as useState
       const valueToStore = value instanceof Function ? value(storedValue) : value;
 
+      console.log('💾 useLocalStorage - Saving to localStorage key:', key);
+      console.log('💾 useLocalStorage - Data being saved:', valueToStore);
+
       // Save to localStorage
       localStorageUtils.setItem(key, valueToStore);
 
       // Update React state
       setStoredValue(valueToStore);
+
+      console.log('💾 useLocalStorage - Successfully saved to localStorage');
     } catch (err) {
+      console.error('💾 useLocalStorage - Error saving to localStorage:', err);
       setError(err as LocalStorageError);
 
       // If storage fails, still update React state for immediate UI feedback

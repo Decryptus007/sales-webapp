@@ -8,14 +8,11 @@ import {
   validateFiles,
   FileUploadOptions,
   FileUploadProgress,
-  createImagePreviewUrl,
-  getFileTypeDescription,
-  isImageFile
+  getFileTypeDescription
 } from '@/lib/fileUtils';
 import { formatFileSize } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Button } from './Button';
-import { Modal } from './Modal';
 import { ConfirmationModal } from './ConfirmationModal';
 
 export interface FileUploadProps {
@@ -43,11 +40,7 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({
   showPreview = true,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const isImage = isImageFile(attachment.type);
-  const previewUrl = isImage ? createImagePreviewUrl(attachment) : null;
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -77,34 +70,21 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({
         <div className="flex items-center space-x-3 min-w-0 flex-1">
           {/* File Icon or Preview */}
           <div className="flex-shrink-0">
-            {isImage && previewUrl && showPreview ? (
-              <button
-                onClick={() => setPreviewOpen(true)}
-                className="h-10 w-10 overflow-hidden rounded border border-gray-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation min-h-[44px] min-w-[44px] sm:h-10 sm:w-10 sm:min-h-[40px] sm:min-w-[40px]"
+            <div className="flex h-10 w-10 items-center justify-center rounded bg-gray-100 min-h-[44px] min-w-[44px] sm:h-10 sm:w-10 sm:min-h-[40px] sm:min-w-[40px]">
+              <svg
+                className="h-5 w-5 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <img
-                  src={previewUrl}
-                  alt={attachment.filename}
-                  className="h-full w-full object-cover"
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
-              </button>
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded bg-gray-100 min-h-[44px] min-w-[44px] sm:h-10 sm:w-10 sm:min-h-[40px] sm:min-w-[40px]">
-                <svg
-                  className="h-5 w-5 text-gray-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-            )}
+              </svg>
+            </div>
           </div>
 
           {/* File Info */}
@@ -179,27 +159,6 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({
         variant="danger"
         loading={isDeleting}
       />
-
-      {/* Image Preview Modal */}
-      {isImage && previewUrl && (
-        <Modal
-          isOpen={previewOpen}
-          onClose={() => setPreviewOpen(false)}
-          title={attachment.filename}
-          size="lg"
-        >
-          <div className="text-center">
-            <img
-              src={previewUrl}
-              alt={attachment.filename}
-              className="max-h-96 max-w-full rounded"
-            />
-            <p className="mt-2 text-sm text-gray-500">
-              {formatFileSize(attachment.size)}
-            </p>
-          </div>
-        </Modal>
-      )}
     </>
   );
 };
