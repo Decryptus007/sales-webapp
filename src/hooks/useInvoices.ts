@@ -46,7 +46,6 @@ export function useInvoices() {
       let needsMigration = false;
       const migratedInvoices = invoices.map(invoice => {
         if (!invoice.attachments || !Array.isArray(invoice.attachments)) {
-          console.log('🔧 Migration - Adding attachments array to invoice:', invoice.id);
           needsMigration = true;
           return {
             ...invoice,
@@ -57,7 +56,6 @@ export function useInvoices() {
       });
 
       if (needsMigration) {
-        console.log('🔧 Migration - Updating invoices with attachments arrays');
         setInvoices(migratedInvoices);
       }
     }
@@ -72,9 +70,6 @@ export function useInvoices() {
    * Create a new invoice with automatic ID and timestamp generation
    */
   const createInvoice = useCallback((invoiceData: CreateInvoiceData): Invoice => {
-    console.log('🗃️ useInvoices - createInvoice called');
-    console.log('🗃️ useInvoices - Received invoiceData.attachments:', invoiceData.attachments?.length, invoiceData.attachments);
-
     try {
       setOperationError(null);
 
@@ -97,14 +92,9 @@ export function useInvoices() {
         updatedAt: now,
       };
 
-      console.log('🗃️ useInvoices - Created invoice object:', newInvoice.id);
-      console.log('🗃️ useInvoices - Invoice attachments:', newInvoice.attachments?.length, newInvoice.attachments);
-
       // Add to invoices array
       setInvoices(prev => {
         const updated = [...prev, newInvoice];
-        console.log('🗃️ useInvoices - Updated invoices array, total invoices:', updated.length);
-        console.log('🗃️ useInvoices - New invoice in array has attachments:', updated[updated.length - 1].attachments?.length);
         return updated;
       });
 
@@ -130,15 +120,8 @@ export function useInvoices() {
       const currentInvoices = localStorageUtils.getItem<Invoice[]>(INVOICES_STORAGE_KEY, []);
       const found = currentInvoices.find(invoice => invoice.id === id);
 
-      console.log('🔍 useInvoices - getInvoice called for ID:', id);
-      console.log('🔍 useInvoices - Reading directly from localStorage, total invoices:', currentInvoices.length);
-      console.log('🔍 useInvoices - Found invoice:', found ? 'YES' : 'NO');
-      if (found) {
-        console.log('🔍 useInvoices - Invoice attachments:', found.attachments?.length, found.attachments);
-      }
       return found || null;
     } catch (error) {
-      console.error('🔍 useInvoices - Error in getInvoice:', error);
       const invoiceError = new InvoiceError('Failed to get invoice', error as Error);
       setOperationError(invoiceError);
       return null;
@@ -152,19 +135,16 @@ export function useInvoices() {
     try {
       setOperationError(null);
 
-      console.log('🔄 useInvoices - updateInvoice called for ID:', id);
-      console.log('🔄 useInvoices - Updates include attachments:', updates.attachments?.length, updates.attachments);
-
-      const existingInvoice = invoices.find(invoice => invoice.id === id);
+      // Read directly from localStorage to get the most current data (avoid race conditions)
+      const currentInvoices = localStorageUtils.getItem<Invoice[]>(INVOICES_STORAGE_KEY, []);
+      const existingInvoice = currentInvoices.find(invoice => invoice.id === id);
       if (!existingInvoice) {
         throw new InvoiceNotFoundError(id);
       }
 
-      console.log('🔄 useInvoices - Existing invoice attachments:', existingInvoice.attachments?.length, existingInvoice.attachments);
-
       // Check for duplicate invoice number if it's being updated
       if (updates.invoiceNumber && updates.invoiceNumber !== existingInvoice.invoiceNumber) {
-        const duplicateInvoice = invoices.find(
+        const duplicateInvoice = currentInvoices.find(
           invoice => invoice.id !== id && invoice.invoiceNumber === updates.invoiceNumber
         );
 
@@ -186,10 +166,7 @@ export function useInvoices() {
       // This allows the file attachment system to manage attachments independently
       if (updates.attachments === undefined) {
         updatedInvoice.attachments = existingInvoice.attachments;
-        console.log('🔄 useInvoices - Preserving existing attachments (updates.attachments was undefined)');
       }
-
-      console.log('🔄 useInvoices - Final updated invoice attachments:', updatedInvoice.attachments?.length, updatedInvoice.attachments);
 
       // Update invoices array
       setInvoices(prev =>

@@ -125,44 +125,50 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   return (
     <div className={cn('bg-white border border-gray-200 rounded-lg shadow-sm', className)}>
       {/* Filter Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <div className="flex items-center space-x-2">
-          <h3 className="text-lg font-medium text-gray-900">Filters</h3>
-          {activeFilterCount > 0 && (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              {activeFilterCount} active
-            </span>
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearAllFilters}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              Clear all
-            </Button>
-          )}
+      <div className="border-b border-gray-200">
+        <div className="flex items-center justify-between p-4">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center"
+            className="flex items-center space-x-2 flex-1 text-left hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors -m-4 p-4 mr-2"
             aria-label={isExpanded ? 'Collapse filters' : 'Expand filters'}
           >
-            <svg
-              className={cn('h-5 w-5 transition-transform', isExpanded && 'rotate-180')}
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <h3 className="text-lg font-medium text-gray-900">Filters</h3>
+            {activeFilterCount > 0 && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {activeFilterCount} active
+              </span>
+            )}
           </button>
+          <div className="flex items-center space-x-2">
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                Clear all
+              </Button>
+            )}
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+              aria-label={isExpanded ? 'Collapse filters arrow' : 'Expand filters arrow'}
+            >
+              <svg
+                className={cn('h-5 w-5 transition-transform', isExpanded && 'rotate-180')}
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 

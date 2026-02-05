@@ -101,7 +101,7 @@ export const CreateInvoiceSchema = z.object({
   customerName: z.string().min(1, 'Customer name is required').max(200, 'Customer name cannot exceed 200 characters'),
   customerEmail: z.string().email('Invalid email format').optional().or(z.literal('')),
   customerAddress: z.string().max(500, 'Customer address cannot exceed 500 characters').optional(),
-  lineItems: z.array(BaseLineItemSchema).min(1, 'At least one line item is required').max(100, 'Cannot exceed 100 line items'),
+  lineItems: z.array(LineItemSchema).min(1, 'At least one line item is required').max(100, 'Cannot exceed 100 line items'),
   subtotal: z.number().nonnegative('Subtotal cannot be negative'),
   tax: z.number().nonnegative('Tax cannot be negative').max(999999.99, 'Tax cannot exceed ₦999,999.99'),
   total: z.number().nonnegative('Total cannot be negative'),
@@ -343,18 +343,69 @@ export function formatErrorsForForm(errors: ValidationError[]): Record<string, s
   const formErrors: Record<string, string> = {};
 
   errors.forEach((error) => {
-    formErrors[error.field] = error.message;
+    // Only set if not already set (keep first error)
+    if (!formErrors[error.field]) {
+      formErrors[error.field] = error.message;
+    }
   });
 
   return formErrors;
 }
 
 /**
- * Gets the first error message for a specific field
+ * Validates customer information
  */
-export function getFieldError(errors: ValidationError[], fieldName: string): string | undefined {
-  const error = errors.find((err) => err.field === fieldName);
-  return error?.message;
+export function validateCustomerInfo(data: {
+  customerName: string;
+  customerEmail?: string;
+  customerAddress?: string;
+}): ValidationResult {
+  const errors: ValidationError[] = [];
+
+  // Validate customer name
+  if (!data.customerName || data.customerName.trim() === '') {
+    errors.push({ field: 'customerName', message: 'Customer name is required' });
+  } else if (data.customerName.length > 100) {
+    errors.push({ field: 'customerName', message: 'Customer name cannot exceed 100 characters' });
+  }
+
+  // Validate customer email if provided
+  if (data.customerEmail && data.customerEmail.trim() !== '') {
+    if (!validateEmailFormat(data.customerEmail)) {
+      errors.push({ field: 'customerEmail', message: 'Invalid email format' });
+    }
+  }
+
+  return {
+    success: errors.length === 0,
+    errors,
+  };
+}
+
+/**
+ * Validates payment status
+ */
+export function validatePaymentStatus(status: PaymentStatus): ValidationResult {
+  const validStatuses: PaymentStatus[] = ['Paid', 'Unpaid', 'Partially Paid', 'Overdue'];
+
+  if (!validStatuses.includes(status)) {
+    return {
+      success: false,
+      errors: [{ field: 'paymentStatus', message: 'Invalid payment status' }],
+    };
+  }
+
+  return {
+    success: true,
+    errors: [],
+  };
+}
+
+/**
+ * Gets the first error message for a specific field from form errors object
+ */
+export function getFieldError(errors: Record<string, string>, fieldName: string): string | undefined {
+  return errors[fieldName];
 }
 
 /**

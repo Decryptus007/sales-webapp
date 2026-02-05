@@ -58,11 +58,6 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   // File attachments state for create mode
   const [tempAttachments, setTempAttachments] = useState<FileAttachment[]>([]);
 
-  // Debug: Log tempAttachments changes
-  useEffect(() => {
-    console.log('🔄 InvoiceForm - tempAttachments changed:', tempAttachments.length, tempAttachments);
-  }, [tempAttachments]);
-
   // File attachments hook (only for edit mode with existing invoice)
   const fileAttachments = mode === 'edit' && initialData?.id
     ? useFileAttachments(initialData.id)
@@ -273,15 +268,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
   // Actually submit the form
   const submitForm = useCallback(async (formData: InvoiceFormData) => {
-    console.log('🚀 InvoiceForm - submitForm called with attachments:', formData.attachments?.length, formData.attachments);
-
     setIsSubmitting(true);
     setErrors({});
 
     try {
       await onSubmit(formData);
-
-      console.log('✅ InvoiceForm - onSubmit completed successfully');
 
       // Show success toast
       addToast({
@@ -551,68 +542,105 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
       {/* File Attachments - Available in both create and edit modes */}
       <FormGroup
-        title="File Attachments"
-        description="Upload and manage files related to this invoice"
+        title="File Attachment"
+        description="Upload one file related to this invoice (PDF, images, documents)"
       >
         <div className="space-y-4">
-          {/* File Upload */}
-          <FileUpload
-            onFilesUploaded={async (attachments) => {
-              if (mode === 'edit' && fileAttachments) {
-                // Edit mode: use the file attachments hook
-                try {
-                  await fileAttachments.uploadMultipleFiles(
-                    attachments.map(att => new File([att.data], att.filename, { type: att.type }))
-                  );
-                  addToast({
-                    type: 'success',
-                    title: 'Files Uploaded',
-                    message: `${attachments.length} file(s) uploaded successfully.`,
-                  });
-                } catch (error) {
+          {/* Show current attachment status */}
+          {((mode === 'edit' && fileAttachments && fileAttachments.stats.count > 0) || (mode === 'create' && tempAttachments.length > 0)) ? (
+            <div className="rounded-lg bg-green-50 border border-green-200 p-3">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-green-800">
+                    File attached successfully
+                  </p>
+                  <p className="text-sm text-green-700">
+                    You have reached the maximum of 1 file per invoice. To add a different file, please delete the current one first.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* File Upload */}
+              <FileUpload
+                onFilesUploaded={async (attachments) => {
+                  if (mode === 'edit' && fileAttachments) {
+                    // Edit mode: use the file attachments hook
+                    try {
+                      await fileAttachments.uploadMultipleFiles(
+                        attachments.map(att => new File([att.data], att.filename, { type: att.type }))
+                      );
+                      addToast({
+                        type: 'success',
+                        title: 'File Uploaded',
+                        message: 'File uploaded successfully.',
+                      });
+                    } catch (error) {
+                      addToast({
+                        type: 'error',
+                        title: 'Upload Failed',
+                        message: 'Failed to upload file. Please try again.',
+                      });
+                    }
+                  } else {
+                    // Create mode: directly use the FileAttachment objects
+                    setTempAttachments(prev => {
+                      const updated = [...prev, ...attachments];
+                      return updated;
+                    });
+                    addToast({
+                      type: 'success',
+                      title: 'File Uploaded',
+                      message: 'File uploaded successfully.',
+                    });
+                  }
+                }}
+                onError={(error) => {
                   addToast({
                     type: 'error',
                     title: 'Upload Failed',
-                    message: 'Failed to upload files. Please try again.',
+                    message: error,
                   });
-                }
-              } else {
-                // Create mode: directly use the FileAttachment objects
-                console.log('📁 FileUpload - Create mode: received attachments:', attachments.length, attachments);
-                setTempAttachments(prev => {
-                  const updated = [...prev, ...attachments];
-                  console.log('📁 FileUpload - Updated tempAttachments:', updated.length, updated);
-                  return updated;
-                });
-                addToast({
-                  type: 'success',
-                  title: 'Files Uploaded',
-                  message: `${attachments.length} file(s) uploaded successfully.`,
-                });
-              }
-            }}
-            onError={(error) => {
-              addToast({
-                type: 'error',
-                title: 'Upload Failed',
-                message: error,
-              });
-            }}
-            maxFiles={mode === 'edit' && fileAttachments ? fileAttachments.constraints.remainingFiles : 20 - tempAttachments.length}
-            maxSize={10 * 1024 * 1024} // 10MB
-            allowedTypes={[
-              'application/pdf',
-              'image/jpeg',
-              'image/png',
-              'image/gif',
-              'application/msword',
-              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              'text/plain',
-              'application/vnd.ms-excel',
-              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            ]}
-            disabled={isLoading || isSubmitting || (mode === 'edit' && fileAttachments && !fileAttachments.canUploadMore) || (mode === 'create' && tempAttachments.length >= 20)}
-          />
+                }}
+                maxFiles={1}
+                maxSize={10 * 1024 * 1024} // 10MB
+                allowedTypes={[
+                  'application/pdf',
+                  'image/jpeg',
+                  'image/png',
+                  'image/gif',
+                  'application/msword',
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                  'text/plain',
+                  'application/vnd.ms-excel',
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ]}
+                disabled={isLoading || isSubmitting}
+              />
+
+              {/* Upload instructions */}
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-4 w-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-2">
+                    <p className="text-xs text-blue-700">
+                      <strong>One file per invoice:</strong> You can upload one file up to 10MB. Supported formats include PDF, images, Word documents, Excel files, and text files.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Enhanced Attachment List */}
           <AttachmentList
@@ -688,8 +716,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             showPreview={true}
             showMetadata={true}
             compact={false}
-            emptyMessage="No files attached to this invoice"
-            emptyDescription="Upload documents, images, or other files related to this invoice"
+            emptyMessage="No file attached to this invoice"
+            emptyDescription="Upload a document, image, or other file related to this invoice"
             showEmptyActions={true}
             onUploadClick={() => {
               // Scroll to upload area or focus file input
@@ -698,69 +726,6 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             }}
             maxDisplayCount={5}
           />
-
-          {/* Attachment Stats */}
-          {((mode === 'edit' && fileAttachments && fileAttachments.stats.count > 0) || (mode === 'create' && tempAttachments.length > 0)) && (
-            <div className="rounded-lg bg-gray-50 p-3">
-              <div className="grid grid-cols-2 gap-4 text-xs text-gray-600 sm:grid-cols-4">
-                <div>
-                  <span className="font-medium">
-                    {mode === 'edit' && fileAttachments ? fileAttachments.stats.count : tempAttachments.length}
-                  </span> files
-                </div>
-                <div>
-                  <span className="font-medium">
-                    {mode === 'edit' && fileAttachments
-                      ? (fileAttachments.stats.totalSize / (1024 * 1024)).toFixed(1)
-                      : (tempAttachments.reduce((sum, att) => sum + att.size, 0) / (1024 * 1024)).toFixed(1)
-                    }MB
-                  </span> used
-                </div>
-                <div>
-                  <span className="font-medium">
-                    {mode === 'edit' && fileAttachments
-                      ? fileAttachments.constraints.remainingFiles
-                      : 20 - tempAttachments.length
-                    }
-                  </span> slots left
-                </div>
-                <div>
-                  <span className="font-medium">
-                    {mode === 'edit' && fileAttachments
-                      ? fileAttachments.stats.storageUsed.toFixed(1)
-                      : ((tempAttachments.reduce((sum, att) => sum + att.size, 0) / (50 * 1024 * 1024)) * 100).toFixed(1)
-                    }%
-                  </span> storage
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Create Mode Info */}
-          {mode === 'create' && (
-            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-4 w-4 text-blue-400"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-2">
-                  <p className="text-xs text-blue-700">
-                    Files uploaded here will be attached to the invoice when it's created.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </FormGroup>
 
@@ -770,7 +735,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           <Button
             type="button"
             variant="outline"
-            onClick={handleCancelClick}
+            onClick={onCancel}
             disabled={isLoading || isSubmitting}
             className="w-full sm:w-auto order-2 sm:order-1"
           >

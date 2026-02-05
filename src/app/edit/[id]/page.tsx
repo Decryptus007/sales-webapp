@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { InvoiceForm, InvoiceFormData } from '@/components/invoice';
 import { useInvoices } from '@/hooks';
@@ -14,6 +14,9 @@ export default function EditInvoicePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  // Use ref to track the current invoice state without causing re-renders
+  const currentInvoiceRef = useRef<Invoice | null>(null);
 
   const invoiceId = params.id as string;
 
@@ -37,6 +40,7 @@ export default function EditInvoicePage() {
         console.log('📄 EditPage - Found invoice:', foundInvoice.id);
         console.log('📄 EditPage - Invoice attachments:', foundInvoice.attachments?.length, foundInvoice.attachments);
         setInvoice(foundInvoice);
+        currentInvoiceRef.current = foundInvoice;
       } else {
         console.log('📄 EditPage - Invoice not found for ID:', invoiceId);
         setNotFound(true);
@@ -47,19 +51,20 @@ export default function EditInvoicePage() {
     } finally {
       setIsLoadingInvoice(false);
     }
-  }, [invoiceId, invoicesLoading, invoices, getInvoice]);
+  }, [invoiceId, invoicesLoading]); // Remove 'invoices' and 'getInvoice' from dependencies
 
-  // Also update invoice state whenever invoices array changes (for attachment updates)
+  // Update invoice state when invoices array changes (for attachment updates)
   useEffect(() => {
-    if (invoice && !invoicesLoading) {
+    if (!invoicesLoading && currentInvoiceRef.current) {
       const currentInvoice = getInvoice(invoiceId);
-      if (currentInvoice && currentInvoice.updatedAt !== invoice.updatedAt) {
+      if (currentInvoice && currentInvoice.updatedAt !== currentInvoiceRef.current.updatedAt) {
         console.log('📄 EditPage - Invoice updated, refreshing state');
         console.log('📄 EditPage - New attachment count:', currentInvoice.attachments?.length);
         setInvoice(currentInvoice);
+        currentInvoiceRef.current = currentInvoice;
       }
     }
-  }, [invoices, invoice, invoiceId, getInvoice, invoicesLoading]); // Add 'invoices' to dependencies so it updates when invoices change
+  }, [invoices, invoiceId, invoicesLoading]); // Remove 'invoice' and 'getInvoice' from dependencies
 
   // Handle form submission
   const handleSubmit = async (formData: InvoiceFormData) => {

@@ -57,19 +57,19 @@ export function useFileAttachments(
   options: UseFileAttachmentsOptions = {}
 ) {
   const {
-    maxFiles = 20,
+    maxFiles = 1, // Changed from 20 to 1
     maxFileSize = 10 * 1024 * 1024, // 10MB
     maxTotalSize = 50 * 1024 * 1024, // 50MB
     allowedTypes
   } = options;
 
-  const { getInvoice, updateInvoice } = useInvoices();
+  const { getInvoice, updateInvoice, invoices } = useInvoices();
   const [operationError, setOperationError] = useState<FileAttachmentError | null>(null);
   const [uploadProgress, setUploadProgress] = useState<Record<string, FileUploadProgress>>({});
   const [isUploading, setIsUploading] = useState(false);
 
-  // Get current invoice and its attachments
-  const invoice = useMemo(() => getInvoice(invoiceId), [getInvoice, invoiceId]);
+  // Get current invoice and its attachments - include invoices in dependencies to react to changes
+  const invoice = useMemo(() => getInvoice(invoiceId), [getInvoice, invoiceId, invoices]);
   const attachments = useMemo(() => invoice?.attachments || [], [invoice]);
 
   // Clear operation errors
@@ -248,7 +248,6 @@ export function useFileAttachments(
         onProgress: (progress) => {
           // Note: This is a simplified progress tracking
           // In a real implementation, you might want per-file progress
-          console.log('Upload progress:', progress);
         },
         ...uploadOptions,
       });

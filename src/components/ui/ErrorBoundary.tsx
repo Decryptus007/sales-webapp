@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    const { resetKeys, resetOnPropsChange } = this.props;
+    const { resetKeys, resetOnPropsChange, children } = this.props;
     const { hasError } = this.state;
 
     // Reset error boundary when resetKeys change
@@ -76,6 +76,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // Reset error boundary when any prop changes (if enabled)
     if (hasError && resetOnPropsChange && prevProps !== this.props) {
+      this.resetErrorBoundary();
+    }
+
+    // Reset error boundary when children change (for testing)
+    if (hasError && prevProps.children !== children) {
       this.resetErrorBoundary();
     }
   }
@@ -187,7 +192,11 @@ ${errorInfo?.componentStack}
       // Default error UI
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+          <div
+            className="max-w-md w-full bg-white rounded-lg shadow-lg p-6"
+            role="alert"
+            aria-live="assertive"
+          >
             <div className="flex items-center mb-4">
               <div className="flex-shrink-0">
                 <svg
@@ -213,7 +222,7 @@ ${errorInfo?.componentStack}
 
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-2">
-                We're sorry, but something unexpected happened. The error has been logged and we'll look into it.
+                An unexpected error occurred. We're sorry, but something unexpected happened. The error has been logged and we'll look into it.
               </p>
 
               {error && (

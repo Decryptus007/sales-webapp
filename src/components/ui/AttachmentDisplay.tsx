@@ -36,8 +36,14 @@ const AttachmentDisplay: React.FC<AttachmentDisplayProps> = ({
   const fileExtension = getFileExtension(attachment.filename);
   const typeDescription = getFileTypeDescription(attachment.type);
 
-  const handleDelete = async () => {
+  const handleDelete = async (e?: React.MouseEvent) => {
     if (!onDelete) return;
+
+    // Prevent event propagation to avoid triggering form handlers
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
 
     setIsDeleting(true);
     try {
@@ -215,7 +221,11 @@ const AttachmentDisplay: React.FC<AttachmentDisplayProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowDeleteConfirm(true)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowDeleteConfirm(true);
+                }}
                 className="h-6 w-6 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
                 title="Delete file"
               >
@@ -306,7 +316,11 @@ const AttachmentDisplay: React.FC<AttachmentDisplayProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowDeleteConfirm(true)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowDeleteConfirm(true);
+                    }}
                     className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
                     title="Delete file"
                   >

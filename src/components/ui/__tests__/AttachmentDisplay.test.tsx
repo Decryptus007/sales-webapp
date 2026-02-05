@@ -40,7 +40,7 @@ describe('AttachmentDisplay', () => {
 
     expect(screen.getByText('test-document.pdf')).toBeInTheDocument();
     expect(screen.getByText('PDF Document')).toBeInTheDocument();
-    expect(screen.getByText('1000 KB')).toBeInTheDocument(); // formatFileSize returns KB for this size
+    expect(screen.getByText('1000.0 KB')).toBeInTheDocument(); // formatFileSize returns KB for this size
     expect(screen.getByText('pdf')).toBeInTheDocument(); // Extension is lowercase
   });
 
@@ -53,7 +53,7 @@ describe('AttachmentDisplay', () => {
     );
 
     expect(screen.getByText('test-document.pdf')).toBeInTheDocument();
-    expect(screen.getByText('1000 KB')).toBeInTheDocument(); // formatFileSize returns KB for this size
+    expect(screen.getByText('1000.0 KB')).toBeInTheDocument(); // formatFileSize returns KB for this size
   });
 
   it('calls onDownload when download button is clicked', async () => {

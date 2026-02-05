@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 
@@ -27,6 +27,17 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   variant = 'danger',
   loading = false,
 }) => {
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Focus the confirm button when modal opens
+  useEffect(() => {
+    if (isOpen && confirmButtonRef.current) {
+      const timer = setTimeout(() => {
+        confirmButtonRef.current?.focus();
+      }, 100); // Small delay to ensure modal is fully rendered
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
   const handleConfirm = () => {
     onConfirm();
   };
@@ -42,6 +53,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               viewBox="0 0 24 24"
               strokeWidth="1.5"
               stroke="currentColor"
+              data-testid="danger-icon"
             >
               <path
                 strokeLinecap="round"
@@ -60,6 +72,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               viewBox="0 0 24 24"
               strokeWidth="1.5"
               stroke="currentColor"
+              data-testid="warning-icon"
             >
               <path
                 strokeLinecap="round"
@@ -78,6 +91,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               viewBox="0 0 24 24"
               strokeWidth="1.5"
               stroke="currentColor"
+              data-testid="info-icon"
             >
               <path
                 strokeLinecap="round"
@@ -90,16 +104,17 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     }
   };
 
-  const getConfirmButtonVariant = () => {
+  const getConfirmButtonClass = () => {
+    const baseClass = "w-full sm:ml-3 sm:w-auto";
     switch (variant) {
       case 'danger':
-        return 'destructive';
+        return `${baseClass} bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500`;
       case 'warning':
-        return 'destructive';
+        return `${baseClass} bg-yellow-600 text-white hover:bg-yellow-700 focus-visible:ring-yellow-500`;
       case 'info':
-        return 'primary';
+        return `${baseClass} bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500`;
       default:
-        return 'primary';
+        return `${baseClass} bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500`;
     }
   };
 
@@ -110,13 +125,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       size="sm"
       closeOnOverlayClick={!loading}
       closeOnEscape={!loading}
+      title={title} // Pass title to Modal for proper aria-labelledby
     >
       <div className="sm:flex sm:items-start">
         {getIcon()}
         <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-          <h3 className="text-base font-semibold leading-6 text-gray-900">
-            {title}
-          </h3>
           <div className="mt-2">
             <p className="text-sm text-gray-500">{message}</p>
           </div>
@@ -124,11 +137,12 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       </div>
       <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
         <Button
-          variant={getConfirmButtonVariant()}
+          ref={confirmButtonRef}
+          variant="primary"
           onClick={handleConfirm}
           loading={loading}
           disabled={loading}
-          className="w-full sm:ml-3 sm:w-auto"
+          className={getConfirmButtonClass()}
         >
           {confirmText}
         </Button>

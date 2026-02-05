@@ -221,13 +221,11 @@ export const localStorageUtils = {
       keysToRemove.forEach(key => {
         try {
           window.localStorage.removeItem(key);
-          console.log(`Cleaned up old localStorage key: ${key}`);
         } catch (error) {
           console.warn(`Failed to remove old key ${key}:`, error);
         }
       });
 
-      console.log(`Cleaned up ${keysToRemove.length} old localStorage entries`);
     } catch (error) {
       console.error('Error during localStorage cleanup:', error);
     }
@@ -279,8 +277,6 @@ export function useLocalStorage<T>(
     try {
       setError(null);
       const value = localStorageUtils.getItem(key, defaultValueRef.current);
-      console.log('💾 useLocalStorage - Loading from localStorage key:', key);
-      console.log('💾 useLocalStorage - Loaded data:', value);
       setStoredValue(value);
     } catch (err) {
       console.error('💾 useLocalStorage - Error loading from localStorage:', err);
@@ -299,16 +295,11 @@ export function useLocalStorage<T>(
       // Allow value to be a function so we have the same API as useState
       const valueToStore = value instanceof Function ? value(storedValue) : value;
 
-      console.log('💾 useLocalStorage - Saving to localStorage key:', key);
-      console.log('💾 useLocalStorage - Data being saved:', valueToStore);
-
       // Save to localStorage
       localStorageUtils.setItem(key, valueToStore);
 
       // Update React state
       setStoredValue(valueToStore);
-
-      console.log('💾 useLocalStorage - Successfully saved to localStorage');
     } catch (err) {
       console.error('💾 useLocalStorage - Error saving to localStorage:', err);
       setError(err as LocalStorageError);
